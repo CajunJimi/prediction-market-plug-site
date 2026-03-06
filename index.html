@@ -1,0 +1,1231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Prediction Market Plug — Real-Time Market Intelligence</title>
+  <meta name="description" content="Whale alerts, real-time price signals, AI briefings and smart money tracking for Polymarket traders. Join the sharpest prediction market community." />
+  <meta property="og:title" content="Prediction Market Plug" />
+  <meta property="og:description" content="Real-time whale alerts, price signals & AI market intelligence for Polymarket." />
+  <meta property="og:image" content="https://predictionmarketplug.com/og-image.png" />
+  <meta property="og:url" content="https://predictionmarketplug.com" />
+  <meta name="twitter:card" content="summary_large_image" />
+
+  <link rel="icon" type="image/png" href="logo.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+
+  <style>
+    /* ── RESET & BASE ──────────────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --cyan:    #00d4ff;
+      --blue:    #3b6ef8;
+      --purple:  #8b5cf6;
+      --pink:    #d946ef;
+      --dark:    #06080f;
+      --dark2:   #0d1117;
+      --dark3:   #111827;
+      --border:  rgba(0, 212, 255, 0.15);
+      --text:    #e2e8f0;
+      --muted:   #64748b;
+      --font:    'Space Grotesk', sans-serif;
+      --mono:    'JetBrains Mono', monospace;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: var(--font);
+      background: var(--dark);
+      color: var(--text);
+      overflow-x: hidden;
+      line-height: 1.6;
+    }
+
+    /* ── NOISE TEXTURE OVERLAY ─────────────────────────────────────────────── */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+      pointer-events: none;
+      z-index: 0;
+      opacity: 0.5;
+    }
+
+    /* ── GRID BG ───────────────────────────────────────────────────────────── */
+    body::after {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(0,212,255,0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,212,255,0.03) 1px, transparent 1px);
+      background-size: 60px 60px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ── LAYOUT HELPERS ───────────────────────────────────────────────────── */
+    .container {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 0 24px;
+      position: relative;
+      z-index: 1;
+    }
+
+    section { padding: 96px 0; }
+
+    /* ── NAV ──────────────────────────────────────────────────────────────── */
+    nav {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 100;
+      padding: 16px 0;
+      background: rgba(6, 8, 15, 0.85);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--border);
+    }
+
+    nav .inner {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 0 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .nav-logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      text-decoration: none;
+      color: var(--text);
+    }
+
+    .nav-logo img {
+      width: 36px;
+      height: 36px;
+      object-fit: contain;
+      filter: drop-shadow(0 0 8px rgba(0,212,255,0.6));
+    }
+
+    .nav-logo span {
+      font-weight: 600;
+      font-size: 15px;
+      letter-spacing: -0.01em;
+    }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 32px;
+      list-style: none;
+    }
+
+    .nav-links a {
+      color: var(--muted);
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 500;
+      transition: color 0.2s;
+    }
+
+    .nav-links a:hover { color: var(--text); }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 22px;
+      border-radius: 8px;
+      font-family: var(--font);
+      font-weight: 600;
+      font-size: 14px;
+      text-decoration: none;
+      cursor: pointer;
+      border: none;
+      transition: all 0.2s ease;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--cyan), var(--blue));
+      color: #000;
+      box-shadow: 0 0 24px rgba(0,212,255,0.25);
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 0 40px rgba(0,212,255,0.45);
+    }
+
+    .btn-outline {
+      background: transparent;
+      color: var(--cyan);
+      border: 1px solid var(--cyan);
+    }
+
+    .btn-outline:hover {
+      background: rgba(0,212,255,0.08);
+      transform: translateY(-1px);
+    }
+
+    .btn-large {
+      padding: 16px 36px;
+      font-size: 16px;
+      border-radius: 10px;
+    }
+
+    /* ── HERO ─────────────────────────────────────────────────────────────── */
+    .hero {
+      padding: 160px 0 96px;
+      text-align: center;
+      position: relative;
+    }
+
+    /* Radial glow behind the logo */
+    .hero::before {
+      content: '';
+      position: absolute;
+      top: 80px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 600px;
+      height: 600px;
+      background: radial-gradient(circle, rgba(0,212,255,0.08) 0%, transparent 65%);
+      pointer-events: none;
+    }
+
+    .hero-logo {
+      width: 140px;
+      height: 140px;
+      object-fit: contain;
+      margin: 0 auto 32px;
+      display: block;
+      filter: drop-shadow(0 0 30px rgba(0,212,255,0.5)) drop-shadow(0 0 60px rgba(59,110,248,0.3));
+      animation: float 6s ease-in-out infinite;
+    }
+
+    @keyframes float {
+      0%, 100% { transform: translateY(0); }
+      50%       { transform: translateY(-10px); }
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 14px;
+      background: rgba(0,212,255,0.08);
+      border: 1px solid rgba(0,212,255,0.2);
+      border-radius: 100px;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--cyan);
+      margin-bottom: 24px;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+
+    .badge-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--cyan);
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50%       { opacity: 0.5; transform: scale(0.8); }
+    }
+
+    h1 {
+      font-size: clamp(2.4rem, 6vw, 4.2rem);
+      font-weight: 700;
+      line-height: 1.1;
+      letter-spacing: -0.03em;
+      margin-bottom: 24px;
+    }
+
+    .gradient-text {
+      background: linear-gradient(135deg, var(--cyan) 0%, var(--blue) 50%, var(--purple) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .hero p {
+      font-size: clamp(1rem, 2vw, 1.2rem);
+      color: var(--muted);
+      max-width: 580px;
+      margin: 0 auto 40px;
+      line-height: 1.7;
+    }
+
+    .hero-ctas {
+      display: flex;
+      gap: 16px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    .hero-stats {
+      display: flex;
+      gap: 48px;
+      justify-content: center;
+      margin-top: 72px;
+      flex-wrap: wrap;
+    }
+
+    .stat {
+      text-align: center;
+    }
+
+    .stat-num {
+      font-size: 2rem;
+      font-weight: 700;
+      background: linear-gradient(135deg, var(--cyan), var(--blue));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .stat-label {
+      font-size: 13px;
+      color: var(--muted);
+      margin-top: 4px;
+      font-weight: 500;
+    }
+
+    /* ── TICKER ───────────────────────────────────────────────────────────── */
+    .ticker-wrap {
+      overflow: hidden;
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+      background: rgba(0,212,255,0.02);
+      padding: 14px 0;
+      position: relative;
+      z-index: 1;
+    }
+
+    .ticker {
+      display: flex;
+      gap: 48px;
+      animation: ticker 30s linear infinite;
+      width: max-content;
+    }
+
+    .ticker-item {
+      white-space: nowrap;
+      font-size: 13px;
+      font-family: var(--mono);
+      color: var(--muted);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .ticker-item .up   { color: #22c55e; }
+    .ticker-item .down { color: #ef4444; }
+
+    @keyframes ticker {
+      0%   { transform: translateX(0); }
+      100% { transform: translateX(-50%); }
+    }
+
+    /* ── SIGNALS SECTION ──────────────────────────────────────────────────── */
+    .section-label {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--cyan);
+      margin-bottom: 16px;
+    }
+
+    h2 {
+      font-size: clamp(1.8rem, 4vw, 2.8rem);
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      line-height: 1.15;
+      margin-bottom: 16px;
+    }
+
+    .section-sub {
+      font-size: 1.05rem;
+      color: var(--muted);
+      max-width: 520px;
+      margin-bottom: 64px;
+      line-height: 1.7;
+    }
+
+    .signals-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 20px;
+    }
+
+    .signal-card {
+      background: var(--dark2);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 28px;
+      position: relative;
+      overflow: hidden;
+      transition: border-color 0.3s, transform 0.3s;
+    }
+
+    .signal-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--cyan), transparent);
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+
+    .signal-card:hover {
+      border-color: rgba(0,212,255,0.35);
+      transform: translateY(-3px);
+    }
+
+    .signal-card:hover::before { opacity: 1; }
+
+    .signal-icon {
+      font-size: 28px;
+      margin-bottom: 16px;
+      display: block;
+    }
+
+    .signal-card h3 {
+      font-size: 1rem;
+      font-weight: 600;
+      margin-bottom: 8px;
+      color: var(--text);
+    }
+
+    .signal-card p {
+      font-size: 0.875rem;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+
+    /* ── LIVE FEED MOCKUP ─────────────────────────────────────────────────── */
+    .feed-section {
+      background: var(--dark2);
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .feed-layout {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 64px;
+      align-items: center;
+    }
+
+    .feed-mockup {
+      background: var(--dark3);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      overflow: hidden;
+      font-family: var(--mono);
+    }
+
+    .feed-bar {
+      background: rgba(0,212,255,0.05);
+      border-bottom: 1px solid var(--border);
+      padding: 12px 16px;
+      font-size: 12px;
+      color: var(--muted);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .feed-dot { width: 8px; height: 8px; border-radius: 50%; }
+    .feed-dot.red    { background: #ef4444; }
+    .feed-dot.yellow { background: #f59e0b; }
+    .feed-dot.green  { background: #22c55e; }
+
+    .feed-entries { padding: 8px 0; }
+
+    .feed-entry {
+      padding: 10px 16px;
+      font-size: 12px;
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      animation: fadeIn 0.5s ease both;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateX(-8px); }
+      to   { opacity: 1; transform: translateX(0); }
+    }
+
+    .feed-entry:nth-child(1) { animation-delay: 0.1s; }
+    .feed-entry:nth-child(2) { animation-delay: 0.3s; }
+    .feed-entry:nth-child(3) { animation-delay: 0.5s; }
+    .feed-entry:nth-child(4) { animation-delay: 0.7s; }
+    .feed-entry:nth-child(5) { animation-delay: 0.9s; }
+
+    .fe-badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 10px;
+      font-weight: 600;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    .fe-whale  { background: rgba(255,215,0,0.15);   color: #ffd700; }
+    .fe-gainer { background: rgba(34,197,94,0.15);   color: #22c55e; }
+    .fe-loser  { background: rgba(239,68,68,0.15);   color: #ef4444; }
+    .fe-surge  { background: rgba(139,92,246,0.15);  color: #8b5cf6; }
+    .fe-book   { background: rgba(0,212,255,0.15);   color: var(--cyan); }
+
+    .fe-text {
+      color: #94a3b8;
+      line-height: 1.5;
+    }
+
+    .fe-text strong { color: var(--text); }
+
+    .fe-time { color: #334155; font-size: 10px; margin-left: auto; flex-shrink: 0; }
+
+    /* ── PRICING ──────────────────────────────────────────────────────────── */
+    .pricing-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 20px;
+      align-items: start;
+    }
+
+    .pricing-card {
+      background: var(--dark2);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 32px 24px;
+      position: relative;
+      transition: border-color 0.3s, transform 0.3s;
+    }
+
+    .pricing-card:hover {
+      transform: translateY(-4px);
+    }
+
+    .pricing-card.featured {
+      border-color: rgba(0,212,255,0.4);
+      background: linear-gradient(180deg, rgba(0,212,255,0.05) 0%, var(--dark2) 100%);
+    }
+
+    .pricing-card.featured::before {
+      content: 'MOST POPULAR';
+      position: absolute;
+      top: -12px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: linear-gradient(135deg, var(--cyan), var(--blue));
+      color: #000;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      padding: 4px 14px;
+      border-radius: 100px;
+    }
+
+    /* Gold card — premium gold accent */
+    .pricing-card.gold-card {
+      border-color: rgba(255, 200, 50, 0.3);
+      background: linear-gradient(180deg, rgba(255,200,50,0.04) 0%, var(--dark2) 100%);
+    }
+
+    .pricing-card.gold-card .tier-name { color: #ffd700; }
+
+    /* Custom card — purple accent for high-ticket */
+    .pricing-card.custom-card {
+      border-color: rgba(139,92,246,0.4);
+      background: linear-gradient(180deg, rgba(139,92,246,0.06) 0%, var(--dark2) 100%);
+    }
+
+    .pricing-card.custom-card::before {
+      content: 'DONE FOR YOU';
+      position: absolute;
+      top: -12px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: linear-gradient(135deg, var(--purple), var(--pink));
+      color: #fff;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      padding: 4px 14px;
+      border-radius: 100px;
+      white-space: nowrap;
+    }
+
+    /* How it works — custom build process */
+    .how-section {
+      background: var(--dark2);
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .how-steps {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 32px;
+      position: relative;
+    }
+
+    /* Connecting line between steps */
+    .how-steps::before {
+      content: '';
+      position: absolute;
+      top: 28px;
+      left: calc(12.5% + 16px);
+      right: calc(12.5% + 16px);
+      height: 1px;
+      background: linear-gradient(90deg, var(--purple), var(--cyan));
+      opacity: 0.3;
+      pointer-events: none;
+    }
+
+    .how-step {
+      text-align: center;
+      position: relative;
+    }
+
+    .how-num {
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--purple), var(--blue));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 1.1rem;
+      margin: 0 auto 20px;
+      box-shadow: 0 0 20px rgba(139,92,246,0.3);
+    }
+
+    .how-step h3 {
+      font-size: 0.95rem;
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+
+    .how-step p {
+      font-size: 0.82rem;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+
+    .tier-name {
+      font-size: 13px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--muted);
+      margin-bottom: 12px;
+    }
+
+    .tier-price {
+      font-size: 3rem;
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      line-height: 1;
+      margin-bottom: 4px;
+    }
+
+    .tier-price sup {
+      font-size: 1.2rem;
+      font-weight: 600;
+      vertical-align: top;
+      margin-top: 8px;
+      display: inline-block;
+    }
+
+    .tier-period {
+      font-size: 13px;
+      color: var(--muted);
+      margin-bottom: 28px;
+    }
+
+    .tier-features {
+      list-style: none;
+      margin-bottom: 32px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .tier-features li {
+      font-size: 14px;
+      color: var(--text);
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+    }
+
+    .tier-features li .check {
+      color: var(--cyan);
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+
+    .tier-features li .lock {
+      color: var(--muted);
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+
+    .tier-features li.locked { color: var(--muted); }
+
+    .btn-full { width: 100%; justify-content: center; }
+
+    /* ── FAQ ──────────────────────────────────────────────────────────────── */
+    .faq-list {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      max-width: 720px;
+      margin: 0 auto;
+    }
+
+    details {
+      background: var(--dark2);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    details + details { margin-top: 8px; }
+
+    summary {
+      padding: 20px 24px;
+      font-weight: 600;
+      font-size: 15px;
+      cursor: pointer;
+      list-style: none;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      user-select: none;
+    }
+
+    summary::-webkit-details-marker { display: none; }
+
+    summary::after {
+      content: '+';
+      font-size: 20px;
+      font-weight: 300;
+      color: var(--cyan);
+      transition: transform 0.2s;
+    }
+
+    details[open] summary::after { transform: rotate(45deg); }
+
+    details p {
+      padding: 0 24px 20px;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.7;
+    }
+
+    /* ── CTA BANNER ───────────────────────────────────────────────────────── */
+    .cta-banner {
+      text-align: center;
+      padding: 96px 0;
+      position: relative;
+    }
+
+    .cta-banner::before {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 800px;
+      height: 400px;
+      background: radial-gradient(ellipse, rgba(59,110,248,0.1) 0%, transparent 70%);
+      pointer-events: none;
+    }
+
+    .cta-banner h2 { margin-bottom: 16px; }
+    .cta-banner p  { color: var(--muted); margin-bottom: 40px; font-size: 1.05rem; }
+
+    /* ── FOOTER ───────────────────────────────────────────────────────────── */
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 40px 0;
+      position: relative;
+      z-index: 1;
+    }
+
+    .footer-inner {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 0 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+
+    .footer-logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      text-decoration: none;
+      color: var(--text);
+    }
+
+    .footer-logo img {
+      width: 28px;
+      filter: drop-shadow(0 0 6px rgba(0,212,255,0.5));
+    }
+
+    .footer-logo span {
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    footer p {
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    footer a {
+      color: var(--muted);
+      text-decoration: none;
+      font-size: 13px;
+      transition: color 0.2s;
+    }
+
+    footer a:hover { color: var(--cyan); }
+
+    .footer-links {
+      display: flex;
+      gap: 24px;
+    }
+
+    /* ── RESPONSIVE ───────────────────────────────────────────────────────── */
+    @media (max-width: 1024px) {
+      .pricing-grid   { grid-template-columns: repeat(2, 1fr); }
+      .how-steps      { grid-template-columns: repeat(2, 1fr); }
+      .how-steps::before { display: none; }
+    }
+
+    @media (max-width: 768px) {
+      .feed-layout    { grid-template-columns: 1fr; }
+      .pricing-grid   { grid-template-columns: 1fr; }
+      .how-steps      { grid-template-columns: 1fr; }
+      .nav-links      { display: none; }
+      .hero-stats     { gap: 32px; }
+      section         { padding: 64px 0; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- NAV -->
+  <nav>
+    <div class="inner">
+      <a class="nav-logo" href="/">
+        <img src="logo.png" alt="Prediction Market Plug" />
+        <span>Prediction Market Plug</span>
+      </a>
+      <ul class="nav-links">
+        <li><a href="#signals">Signals</a></li>
+        <li><a href="#pricing">Pricing</a></li>
+        <li><a href="#how-it-works">Custom Build</a></li>
+        <li><a href="#faq">FAQ</a></li>
+      </ul>
+      <a class="btn btn-primary" href="https://discord.gg/YOUR_INVITE" target="_blank" rel="noopener">
+        Join Free →
+      </a>
+    </div>
+  </nav>
+
+  <!-- HERO -->
+  <section class="hero">
+    <div class="container">
+      <img class="hero-logo" src="logo.png" alt="Prediction Market Plug Logo" />
+      <div class="badge">
+        <span class="badge-dot"></span>
+        Live signals running 24/7
+      </div>
+      <h1>
+        The edge every<br />
+        <span class="gradient-text">prediction market trader</span><br />
+        needs.
+      </h1>
+      <p>
+        Real-time whale alerts, AI market briefings, smart money tracking
+        and order book signals — all routed to Discord the moment they happen.
+      </p>
+      <div class="hero-ctas">
+        <a class="btn btn-primary btn-large" href="https://discord.gg/YOUR_INVITE" target="_blank" rel="noopener">
+          Join Free on Discord
+        </a>
+        <a class="btn btn-outline btn-large" href="#pricing">
+          View Plans
+        </a>
+      </div>
+
+      <div class="hero-stats">
+        <div class="stat">
+          <div class="stat-num">35K+</div>
+          <div class="stat-label">Markets tracked</div>
+        </div>
+        <div class="stat">
+          <div class="stat-num">24/7</div>
+          <div class="stat-label">Live monitoring</div>
+        </div>
+        <div class="stat">
+          <div class="stat-num">$5K+</div>
+          <div class="stat-label">Min whale alert size</div>
+        </div>
+        <div class="stat">
+          <div class="stat-num">3</div>
+          <div class="stat-label">Platforms scanned</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- TICKER -->
+  <div class="ticker-wrap">
+    <div class="ticker">
+      <span class="ticker-item">🐋 MEGA WHALE — $420K BUY on "Trump wins 2028?" <span class="up">YES 67¢</span></span>
+      <span class="ticker-item">📈 TOP GAINER — "Fed rate cut March?" <span class="up">+18.4%</span></span>
+      <span class="ticker-item">⚡ RAPID MOVER — "BTC above $100K by June?" <span class="up">+12.1%</span></span>
+      <span class="ticker-item">🔊 VOLUME SURGE — "UK election 2026" 9.2× baseline</span>
+      <span class="ticker-item">🧠 SMART MONEY — Leaderboard #3 wallet BUY $28K</span>
+      <span class="ticker-item">📉 TOP LOSER — "ETH above $5K by Q2?" <span class="down">-22.3%</span></span>
+      <span class="ticker-item">🔀 ARBITRAGE — Polymarket vs Kalshi 7.4% spread detected</span>
+      <span class="ticker-item">📊 BOOK SWEEP — YES asks swept on "Fed pivot Q2" — bullish flow</span>
+      <!-- Duplicate for seamless loop -->
+      <span class="ticker-item">🐋 MEGA WHALE — $420K BUY on "Trump wins 2028?" <span class="up">YES 67¢</span></span>
+      <span class="ticker-item">📈 TOP GAINER — "Fed rate cut March?" <span class="up">+18.4%</span></span>
+      <span class="ticker-item">⚡ RAPID MOVER — "BTC above $100K by June?" <span class="up">+12.1%</span></span>
+      <span class="ticker-item">🔊 VOLUME SURGE — "UK election 2026" 9.2× baseline</span>
+      <span class="ticker-item">🧠 SMART MONEY — Leaderboard #3 wallet BUY $28K</span>
+      <span class="ticker-item">📉 TOP LOSER — "ETH above $5K by Q2?" <span class="down">-22.3%</span></span>
+      <span class="ticker-item">🔀 ARBITRAGE — Polymarket vs Kalshi 7.4% spread detected</span>
+      <span class="ticker-item">📊 BOOK SWEEP — YES asks swept on "Fed pivot Q2" — bullish flow</span>
+    </div>
+  </div>
+
+  <!-- SIGNALS -->
+  <section id="signals">
+    <div class="container">
+      <div class="section-label">What we track</div>
+      <h2>Every signal that matters.<br /><span class="gradient-text">Before the crowd sees it.</span></h2>
+      <p class="section-sub">Our bot monitors 35,000+ Polymarket, Kalshi and Manifold markets around the clock and routes the right alerts to the right channels instantly.</p>
+
+      <div class="signals-grid">
+        <div class="signal-card">
+          <span class="signal-icon">🐋</span>
+          <h3>Whale & Mega-Whale Alerts</h3>
+          <p>Trades over $5K hit your feed in seconds. Mega-whale ($100K+) alerts include trader win rate, leaderboard rank and wallet history so you know if it's smart money.</p>
+        </div>
+        <div class="signal-card">
+          <span class="signal-icon">⚡</span>
+          <h3>Rapid Movers</h3>
+          <p>Price velocity detection catches markets moving fast in short windows — often before a news event has been widely indexed. Get there first.</p>
+        </div>
+        <div class="signal-card">
+          <span class="signal-icon">📊</span>
+          <h3>Order Book Intelligence</h3>
+          <p>Real-time CLOB WebSocket tracking. Spread widening, depth collapses and sweep detection — signals that arrive 30–120 seconds before any price-based detector fires.</p>
+        </div>
+        <div class="signal-card">
+          <span class="signal-icon">🧠</span>
+          <h3>Smart Money Tracking</h3>
+          <p>We track top Polymarket leaderboard wallets and alert every time a high-conviction trader places a large position. See exactly what the best traders are buying.</p>
+        </div>
+        <div class="signal-card">
+          <span class="signal-icon">🔀</span>
+          <h3>Cross-Platform Arbitrage</h3>
+          <p>Compares the same event across Polymarket, Kalshi and Manifold. When prices diverge more than fees, we flag the exact trade to execute on each side.</p>
+        </div>
+        <div class="signal-card">
+          <span class="signal-icon">☀️</span>
+          <h3>AI Daily Briefings</h3>
+          <p>Morning and evening summaries written by AI using real scanner data — top movers, whale activity, and market commentary. Context, not just noise.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- LIVE FEED -->
+  <section class="feed-section">
+    <div class="container">
+      <div class="feed-layout">
+        <div>
+          <div class="section-label">Live feed</div>
+          <h2>Your Discord.<br /><span class="gradient-text">Always ahead.</span></h2>
+          <p class="section-sub">Every alert is routed to the right channel — whale trades, price movers, category feeds — so you only see what you care about.</p>
+          <a class="btn btn-primary" href="https://discord.gg/YOUR_INVITE" target="_blank" rel="noopener">
+            See it live →
+          </a>
+        </div>
+        <div class="feed-mockup">
+          <div class="feed-bar">
+            <span class="feed-dot red"></span>
+            <span class="feed-dot yellow"></span>
+            <span class="feed-dot green"></span>
+            <span style="margin-left:8px"># whale-alerts</span>
+          </div>
+          <div class="feed-entries">
+            <div class="feed-entry">
+              <span class="fe-badge fe-whale">🐳 MEGA WHALE</span>
+              <span class="fe-text"><strong>$280K BUY</strong> — "Will Trump pardon Ross Ulbricht?" YES @ 71¢ · Rank #7 wallet · WR 74%</span>
+              <span class="fe-time">now</span>
+            </div>
+            <div class="feed-entry">
+              <span class="fe-badge fe-book">📊 SWEEP</span>
+              <span class="fe-text"><strong>YES asks swept</strong> on "Fed rate cut May 2026" — 840 shares in 60s (91% buy) — bullish flow</span>
+              <span class="fe-time">1m</span>
+            </div>
+            <div class="feed-entry">
+              <span class="fe-badge fe-gainer">📈 GAINER</span>
+              <span class="fe-text"><strong>"Will BTC reach $120K by July?"</strong> YES +19.2% in 1h · Vol $2.1M · Liq $480K</span>
+              <span class="fe-time">3m</span>
+            </div>
+            <div class="feed-entry">
+              <span class="fe-badge fe-surge">🔊 SURGE</span>
+              <span class="fe-text"><strong>"UK general election 2026"</strong> volume 8.4× 24h baseline — sudden interest spike</span>
+              <span class="fe-time">7m</span>
+            </div>
+            <div class="feed-entry">
+              <span class="fe-badge fe-loser">📉 LOSER</span>
+              <span class="fe-text"><strong>"ETH above $5K Q2"</strong> YES –24.1% in 24h · smart money selling detected</span>
+              <span class="fe-time">12m</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PRICING -->
+  <section id="pricing">
+    <div class="container">
+      <div style="text-align:center; margin-bottom:64px">
+        <div class="section-label">Pricing</div>
+        <h2>Start free.<br /><span class="gradient-text">Upgrade when you're ready.</span></h2>
+        <p class="section-sub" style="margin: 0 auto">From free signals to a fully managed trading bot built for your strategy — there's a tier for every serious trader.</p>
+      </div>
+
+      <div class="pricing-grid">
+
+        <!-- FREE -->
+        <div class="pricing-card">
+          <div class="tier-name">Free</div>
+          <div class="tier-price">$<span>0</span></div>
+          <div class="tier-period">forever</div>
+          <ul class="tier-features">
+            <li><span class="check">✓</span> Daily market snapshot</li>
+            <li><span class="check">✓</span> Market resolutions feed</li>
+            <li><span class="check">✓</span> New markets alerts</li>
+            <li><span class="check">✓</span> Community discussion</li>
+            <li class="locked"><span class="lock">—</span> Real-time price signals</li>
+            <li class="locked"><span class="lock">—</span> Whale alerts</li>
+            <li class="locked"><span class="lock">—</span> AI briefings</li>
+            <li class="locked"><span class="lock">—</span> Strategy access</li>
+          </ul>
+          <a class="btn btn-outline btn-full" href="https://discord.gg/YOUR_INVITE" target="_blank" rel="noopener">
+            Join Discord Free
+          </a>
+        </div>
+
+        <!-- PRO -->
+        <div class="pricing-card featured">
+          <div class="tier-name">Pro</div>
+          <div class="tier-price"><sup>$</sup>15<span style="font-size:1.1rem;font-weight:400;color:var(--muted)">/mo</span></div>
+          <div class="tier-period">Billed monthly via Whop</div>
+          <ul class="tier-features">
+            <li><span class="check">✓</span> Everything in Free</li>
+            <li><span class="check">✓</span> Real-time price signals</li>
+            <li><span class="check">✓</span> Whale & mega-whale alerts</li>
+            <li><span class="check">✓</span> Volume surge & rapid movers</li>
+            <li><span class="check">✓</span> AI morning + evening briefings</li>
+            <li><span class="check">✓</span> Category feeds (crypto, politics…)</li>
+            <li><span class="check">✓</span> Cross-platform arbitrage alerts</li>
+            <li class="locked"><span class="lock">—</span> Hosted strategy execution</li>
+          </ul>
+          <a class="btn btn-primary btn-full" href="https://whop.com/prediction-market-plug/" target="_blank" rel="noopener">
+            Get Pro — $15/mo
+          </a>
+        </div>
+
+        <!-- GOLD -->
+        <div class="pricing-card gold-card">
+          <div class="tier-name">Gold</div>
+          <div class="tier-price"><sup>$</sup>200<span style="font-size:1.1rem;font-weight:400;color:var(--muted)">/mo</span></div>
+          <div class="tier-period">Billed monthly via Whop</div>
+          <ul class="tier-features">
+            <li><span class="check">✓</span> Everything in Pro</li>
+            <li><span class="check">✓</span> Smart money copy signals</li>
+            <li><span class="check">✓</span> Order book sweep alerts</li>
+            <li><span class="check">✓</span> Shark Tank wallet rankings</li>
+            <li><span class="check">✓</span> Pre-built strategy templates</li>
+            <li><span class="check">✓</span> Hosted execution on our infra</li>
+            <li><span class="check">✓</span> 1 month Gold free with Custom build</li>
+            <li><span class="check">✓</span> Priority Discord support</li>
+          </ul>
+          <a class="btn btn-full" style="background:linear-gradient(135deg,#b8860b,#ffd700);color:#000;font-weight:700;border-radius:8px;padding:10px 22px;font-size:14px;display:inline-flex;align-items:center;justify-content:center;text-decoration:none;transition:all 0.2s" href="https://whop.com/prediction-market-plug/" target="_blank" rel="noopener">
+            Get Gold — $200/mo
+          </a>
+        </div>
+
+        <!-- CUSTOM -->
+        <div class="pricing-card custom-card">
+          <div class="tier-name">Custom Build</div>
+          <div class="tier-price"><sup>$</sup>997<span style="font-size:1.1rem;font-weight:400;color:var(--muted)"> once</span></div>
+          <div class="tier-period">One-time · You keep the code</div>
+          <ul class="tier-features">
+            <li><span class="check" style="color:var(--purple)">✓</span> 1 month Gold included free</li>
+            <li><span class="check" style="color:var(--purple)">✓</span> Strategy scoping call (1hr)</li>
+            <li><span class="check" style="color:var(--purple)">✓</span> Custom bot built to your spec</li>
+            <li><span class="check" style="color:var(--purple)">✓</span> Full source code delivered</li>
+            <li><span class="check" style="color:var(--purple)">✓</span> You own it — no lock-in</li>
+            <li><span class="check" style="color:var(--purple)">✓</span> Deployment walkthrough</li>
+            <li><span class="check" style="color:var(--purple)">✓</span> 14-day post-delivery support</li>
+            <li><span class="check" style="color:var(--purple)">✓</span> Built on proven live infra</li>
+          </ul>
+          <a class="btn btn-full" style="background:linear-gradient(135deg,var(--purple),var(--pink));color:#fff;font-weight:700;border-radius:8px;padding:10px 22px;font-size:14px;display:inline-flex;align-items:center;justify-content:center;text-decoration:none;transition:all 0.2s" href="https://whop.com/prediction-market-plug/" target="_blank" rel="noopener">
+            Apply for Custom Build →
+          </a>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- HOW CUSTOM WORKS -->
+  <section class="how-section" id="how-it-works">
+    <div class="container">
+      <div style="text-align:center; margin-bottom:56px">
+        <div class="section-label">Custom Build</div>
+        <h2>We build it.<br /><span class="gradient-text">You own it forever.</span></h2>
+        <p class="section-sub" style="margin:0 auto">A custom prediction market bot built to your exact strategy — delivered as working code you can run anywhere, forever.</p>
+      </div>
+      <div class="how-steps">
+        <div class="how-step">
+          <div class="how-num">1</div>
+          <h3>Strategy Call</h3>
+          <p>1-hour scoping call to understand your edge — entry logic, risk rules, market filters, and what signals matter to you.</p>
+        </div>
+        <div class="how-step">
+          <div class="how-num">2</div>
+          <h3>We Build It</h3>
+          <p>Custom bot developed on the same battle-tested infrastructure powering our live scanner — TypeScript, PM2, full logging.</p>
+        </div>
+        <div class="how-step">
+          <div class="how-num">3</div>
+          <h3>Code Delivery</h3>
+          <p>Full source code delivered via private GitHub repo. Yours to keep, modify, and run — no subscriptions, no dependencies on us.</p>
+        </div>
+        <div class="how-step">
+          <div class="how-num">4</div>
+          <h3>Go Live</h3>
+          <p>We walk you through deployment. 14-day support window for bugs or tweaks. Gold membership included to stay plugged in.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FAQ -->
+  <section id="faq">
+    <div class="container">
+      <div style="text-align:center; margin-bottom:48px">
+        <div class="section-label">FAQ</div>
+        <h2>Common questions</h2>
+      </div>
+      <div class="faq-list">
+        <details>
+          <summary>What is a prediction market?</summary>
+          <p>Prediction markets let you trade on the outcome of real-world events — politics, crypto prices, sports, and more. Platforms like Polymarket and Kalshi let you buy "YES" or "NO" shares that pay $1 if the event resolves in your favour. Prices reflect the crowd's probability estimate in real time.</p>
+        </details>
+        <details>
+          <summary>How do the whale alerts work?</summary>
+          <p>Our bot polls the Polymarket trade API every 10 seconds and cross-references large trades ($5K+) against the leaderboard to identify whether the trader is a known high-performer. Alerts include their win rate, leaderboard rank, and trade details — giving you context, not just a number.</p>
+        </details>
+        <details>
+          <summary>What are order book signals?</summary>
+          <p>We connect directly to Polymarket's CLOB (Central Limit Order Book) WebSocket and track real-time order depth. When spreads widen, liquidity collapses, or a large sweep happens, we alert you — typically 30–120 seconds before a price-based detector would fire. These are the closest thing to "order flow" on Polymarket.</p>
+        </details>
+        <details>
+          <summary>How does billing work?</summary>
+          <p>Monthly subscriptions (Free, Pro, Gold) are handled entirely by Whop. After subscribing, your Discord account is automatically granted the correct role within seconds via our webhook integration. Cancellations are instant — no need to contact us. The Custom Build is a one-time payment, also via Whop, with no ongoing subscription required.</p>
+        </details>
+        <details>
+          <summary>What do I get with the Custom Build?</summary>
+          <p>We build a prediction market trading bot to your exact specification — your entry logic, risk rules, market filters, and data sources. You receive the full source code via a private GitHub repo. It's yours forever: no lock-in, no ongoing fees, run it anywhere. The build takes 5–10 business days from the scoping call. 1 month of Gold membership is included so you stay plugged into our live signals while you get up and running.</p>
+        </details>
+        <details>
+          <summary>Can I run the custom bot on my own server?</summary>
+          <p>Yes — the code is delivered ready to deploy on any machine running Node.js. We walk you through deploying it via PM2 on your server or VPS during the delivery process. Since it's built on the same infrastructure as our live scanner, the setup is well-documented and battle-tested. You can also continue running it on our infrastructure for the duration of your Gold subscription.</p>
+        </details>
+        <details>
+          <summary>Is the free tier actually useful?</summary>
+          <p>Yes — you get daily market snapshots, new market alerts, and resolution notifications. It's a genuine taste of the platform, not a teaser with nothing in it. Upgrade to Pro when you want the real-time edge.</p>
+        </details>
+        <details>
+          <summary>What markets do you track?</summary>
+          <p>We scan 35,000+ active markets across Polymarket, Kalshi, and Manifold Markets — covering politics, crypto, sports, finance, science, entertainment, and more. Every market gets snapshot data every 30 seconds.</p>
+        </details>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA BANNER -->
+  <section class="cta-banner">
+    <div class="container">
+      <h2>Ready to trade smarter?</h2>
+      <p>Join free and see the signals in action. Upgrade any time — or get a bot built for you.</p>
+      <div class="hero-ctas">
+        <a class="btn btn-primary btn-large" href="https://discord.gg/YOUR_INVITE" target="_blank" rel="noopener">
+          Join Free on Discord
+        </a>
+        <a class="btn btn-outline btn-large" href="https://whop.com/prediction-market-plug/" target="_blank" rel="noopener">
+          View All Plans
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <footer>
+    <div class="footer-inner">
+      <a class="footer-logo" href="/">
+        <img src="logo.png" alt="PMP" />
+        <span>Prediction Market Plug</span>
+      </a>
+      <p>© 2026 Prediction Market Plug. Not financial advice.</p>
+      <div class="footer-links">
+        <a href="https://discord.gg/YOUR_INVITE" target="_blank" rel="noopener">Discord</a>
+        <a href="https://whop.com/prediction-market-plug/" target="_blank" rel="noopener">Whop</a>
+      </div>
+    </div>
+  </footer>
+
+</body>
+</html>
