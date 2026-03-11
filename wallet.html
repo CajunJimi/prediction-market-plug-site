@@ -352,7 +352,7 @@
       <h2>Performance Statistics <span class="live-badge" style="vertical-align:middle"><span class="live-dot"></span>Live</span></h2>
       <!-- Trade cap warning — shown when we only have a partial window -->
       <div id="cap-warning" style="display:none;margin-bottom:16px;padding:12px 16px;background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.35);border-radius:8px;font-size:13px;line-height:1.5">
-        <strong style="color:var(--amber)">⚠ Partial data — 2,000 trade cap hit</strong>
+        <strong style="color:var(--amber)">⚠ Partial data — trade cap hit</strong>
         <div id="cap-warning-detail" style="color:var(--muted);margin-top:4px"></div>
       </div>
       <div class="stat-grid" id="stat-grid"></div>
@@ -427,7 +427,7 @@
  *
  *  Paste any Polymarket wallet address to get a FULL live analysis:
  *
- *    1. The server fetches all trades (up to 2,000) from Polymarket's API
+ *    1. The server fetches ALL trades (up to 50k) from Polymarket's API
  *    2. Resolves every market outcome live via the CLOB API
  *    3. Computes win rate, equity curve, drawdown, top markets — all live
  *    4. Results are cached server-side for 1 hour, so repeat lookups instant
@@ -518,17 +518,20 @@ async function lookup(raw) {
   history.pushState({}, '', `?wallet=${encodeURIComponent(address)}`);
 
   // ── Animate loading steps while server fetches + resolves ────────────
+  // Heavy traders can have 30k+ trades; loading can take minutes.
   const steps = [
-    ['Fetching trades…',           'Pulling trade history from Polymarket'],
-    ['Resolving markets…',         'Querying CLOB API for outcome data'],
-    ['Computing equity curve…',    'Calculating P&L per trade'],
+    ['Fetching trades…',           'Pulling full trade history from Polymarket — this may take a minute for active traders'],
+    ['Still fetching…',            'Paginating through trade history (500 per page)'],
+    ['Resolving markets…',         'Querying CLOB API for outcome data on each market'],
+    ['Still resolving…',           'Large wallets can have hundreds of unique markets'],
+    ['Computing equity curve…',    'Calculating real USD P&L per trade'],
     ['Building profile…',          'Almost done…'],
   ];
   let stepIdx = 0;
   const stepTimer = setInterval(() => {
-    stepIdx = (stepIdx + 1) % steps.length;
+    stepIdx = Math.min(stepIdx + 1, steps.length - 1);
     setLoadStep(steps[stepIdx][0], steps[stepIdx][1]);
-  }, 4000);
+  }, 8000);
 
   try {
     const res = await fetch(`${API}/public/wallet/${address}`);
@@ -584,7 +587,7 @@ function render(data) {
 
   const tagsEl = document.getElementById('pf-tags');
   tagsEl.innerHTML = '';
-  if (stats?.hitTradeCap) tagsEl.innerHTML += '<span class="tag amber" style="background:rgba(245,158,11,.15);color:var(--amber)">⚠ 2k trade cap hit</span>';
+  if (stats?.hitTradeCap) tagsEl.innerHTML += '<span class="tag amber" style="background:rgba(245,158,11,.15);color:var(--amber)">⚠ trade cap hit</span>';
   if (inOurDb)             tagsEl.innerHTML += '<span class="tag db">📦 In our DB</span>';
   tagsEl.innerHTML += '<span class="tag live">🟢 Live data</span>';
   if (fromCache) tagsEl.innerHTML += '<span class="tag" style="background:rgba(100,116,139,.15);color:var(--muted)">Cached</span>';
@@ -594,9 +597,10 @@ function render(data) {
   if (stats?.hitTradeCap) {
     capWarn.style.display = '';
     const days = stats.daysCovered;
-    const detail = days && days <= 3
-      ? `We fetched the most recent 2,000 trades which only covers ~${days} day${days===1?'':'s'} of activity. This trader is very high-volume — their full history spans far more trades. Stats below reflect this limited window only.`
-      : `We fetched the most recent 2,000 trades out of this wallet's full history. Stats may not reflect long-term performance.`;
+    const n = (stats.totalFetched || 0).toLocaleString();
+    const detail = days && days <= 7
+      ? `We fetched ${n} trades which covers ~${days} day${days===1?'':'s'} of activity. This trader is extremely high-volume — their full history may span far more. Stats below reflect this window only.`
+      : `We fetched ${n} trades. Stats may not reflect the trader's complete lifetime history.`;
     document.getElementById('cap-warning-detail').textContent = detail;
   } else {
     capWarn.style.display = 'none';
@@ -635,7 +639,7 @@ function render(data) {
       <div class="stat-card">
         <div class="label">Resolved Trades</div>
         <div class="value cyan">${stats.resolved.toLocaleString()}</div>
-        <div class="sub">${stats.pending} pending${stats.hitTradeCap ? ' · capped at 2k' : ''}</div>
+        <div class="sub">${stats.pending} pending${stats.hitTradeCap ? ' · cap hit' : ''}</div>
       </div>
       <div class="stat-card">
         <div class="label">Volume</div>
