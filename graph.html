@@ -1,0 +1,1407 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <!-- ── Beta password gate ────────────────────────────────────────────────
+       Runs before any page content renders. Sets a 7-day cookie on success.
+       Change PASS to update the shared password — redeploy to take effect.
+  ──────────────────────────────────────────────────────────────────────── -->
+  <script>
+  (function(){
+    var COOKIE='pmp_beta_auth', PASS='polymarket2026', DAYS=7;
+    function getCookie(n){var m=document.cookie.match('(^|;)\\s*'+n+'\\s*=\\s*([^;]+)');return m?m.pop():'';}
+    if(getCookie(COOKIE)===PASS)return;
+    document.documentElement.style.visibility='hidden';
+    window.addEventListener('DOMContentLoaded',function(){
+      document.documentElement.style.visibility='';
+      var d=document.createElement('div');
+      d.innerHTML='<div style="position:fixed;inset:0;background:#0a0c10;display:flex;align-items:center;justify-content:center;z-index:99999;font-family:system-ui,sans-serif"><div style="background:#111318;border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:40px;width:320px;text-align:center"><div style="font-size:22px;font-weight:700;color:#e2e8f0;margin-bottom:6px">PredictionMarketPlug</div><div style="font-size:13px;color:#64748b;margin-bottom:24px">Beta — enter password to continue</div><input id="_pw_in" type="password" placeholder="Password" style="width:100%;padding:11px 14px;background:#1f2433;border:1px solid rgba(255,255,255,.1);border-radius:8px;color:#e2e8f0;font-size:14px;outline:none;box-sizing:border-box;margin-bottom:10px" /><div id="_pw_err" style="color:#ef4444;font-size:12px;min-height:18px;margin-bottom:10px"></div><button id="_pw_btn" style="width:100%;padding:11px;background:#00d4ff;color:#000;font-weight:700;font-size:14px;border:none;border-radius:8px;cursor:pointer">Enter</button></div></div>';
+      document.body.prepend(d);
+      function attempt(){
+        var v=document.getElementById('_pw_in').value;
+        if(v===PASS){
+          var e=new Date();e.setDate(e.getDate()+DAYS);
+          document.cookie=COOKIE+'='+PASS+';expires='+e.toUTCString()+';path=/;SameSite=Strict';
+          d.remove();
+        } else {
+          document.getElementById('_pw_err').textContent='Incorrect password';
+          document.getElementById('_pw_in').value='';
+          document.getElementById('_pw_in').focus();
+        }
+      }
+      document.getElementById('_pw_btn').onclick=attempt;
+      document.getElementById('_pw_in').onkeydown=function(e){if(e.key==='Enter')attempt();};
+      document.getElementById('_pw_in').focus();
+    });
+  })();
+  </script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Wallet Intelligence Graph — Prediction Market Plug</title>
+  <meta name="description" content="Interactive wallet coordination graph. See which traders co-move on Polymarket, identify suspected coordination rings and suspicious pre-resolution timing." />
+  <meta property="og:title" content="Wallet Intelligence Graph — Prediction Market Plug" />
+  <meta property="og:image" content="https://predictionmarketplug.com/og-image.png" />
+
+  <link rel="icon" type="image/png" href="logo.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+
+  <!-- vis-network: force-directed graph renderer -->
+  <script src="https://cdn.jsdelivr.net/npm/vis-network@9.1.9/dist/vis-network.min.js"></script>
+  <link  href="https://cdn.jsdelivr.net/npm/vis-network@9.1.9/dist/dist/vis-network.min.css" rel="stylesheet" />
+
+  <style>
+    /* ── RESET & BASE ──────────────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --cyan:    #00d4ff;
+      --blue:    #3b6ef8;
+      --purple:  #8b5cf6;
+      --pink:    #d946ef;
+      --green:   #22c55e;
+      --red:     #ef4444;
+      --amber:   #f59e0b;
+      --gold:    #ffd700;
+      --dark:    #06080f;
+      --dark2:   #0d1117;
+      --dark3:   #111827;
+      --border:  rgba(0, 212, 255, 0.1);
+      --text:    #e2e8f0;
+      --muted:   #64748b;
+      --font:    'Space Grotesk', sans-serif;
+      --mono:    'JetBrains Mono', monospace;
+    }
+
+    html, body {
+      height: 100%;
+      font-family: var(--font);
+      background: var(--dark);
+      color: var(--text);
+      overflow: hidden; /* full-screen graph */
+    }
+
+    /* ── NAV ─────────────────────────────────────────────────────────────── */
+    nav {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 200;
+      height: 56px;
+      display: flex;
+      align-items: center;
+      padding: 0 20px;
+      justify-content: space-between;
+      background: rgba(6, 8, 15, 0.95);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .nav-logo {
+      display: flex; align-items: center; gap: 8px;
+      text-decoration: none; color: var(--text);
+    }
+
+    .nav-logo img { width: 28px; filter: drop-shadow(0 0 6px rgba(0,212,255,0.6)); }
+    .nav-logo span { font-weight: 600; font-size: 14px; }
+
+    .nav-links { display: flex; align-items: center; gap: 20px; list-style: none; }
+    .nav-links a {
+      color: var(--muted); text-decoration: none;
+      font-size: 13px; font-weight: 500; transition: color 0.2s;
+    }
+    .nav-links a:hover, .nav-links a.active { color: var(--cyan); }
+
+    /* Hamburger — hidden on desktop, shown on mobile */
+    .hamburger {
+      display: none;
+      flex-direction: column;
+      justify-content: center;
+      gap: 5px;
+      width: 36px;
+      height: 36px;
+      padding: 4px;
+      background: none;
+      border: none;
+      cursor: pointer;
+    }
+    .hamburger span {
+      display: block;
+      height: 2px;
+      background: var(--text);
+      border-radius: 2px;
+      transition: all 0.2s;
+    }
+
+    @media (max-width: 768px) {
+      .nav-links { display: none; }
+      .hamburger { display: flex; }
+      /* Mobile nav drawer */
+      .nav-links.open {
+        display: flex;
+        flex-direction: column;
+        position: fixed;
+        top: 56px;
+        left: 0; right: 0;
+        background: rgba(6,8,15,0.98);
+        border-bottom: 1px solid var(--border);
+        padding: 16px 20px;
+        gap: 16px;
+        z-index: 200;
+      }
+    }
+
+    .btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 7px 16px; border-radius: 7px;
+      font-family: var(--font); font-weight: 600; font-size: 13px;
+      text-decoration: none; cursor: pointer; border: none;
+      transition: all 0.2s;
+    }
+    .btn-primary { background: linear-gradient(135deg, var(--cyan), var(--blue)); color: #000; }
+    .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 0 24px rgba(0,212,255,0.35); }
+
+    /* ── FULL-SCREEN LAYOUT ──────────────────────────────────────────────── */
+    .layout {
+      position: fixed;
+      top: 56px; left: 0; right: 0; bottom: 0;
+      display: flex;
+    }
+
+    /* ── LEFT SIDEBAR — controls ─────────────────────────────────────────── */
+    .sidebar {
+      width: 280px;
+      flex-shrink: 0;
+      background: var(--dark2);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+      z-index: 10;
+    }
+
+    .sidebar::-webkit-scrollbar { width: 4px; }
+    .sidebar::-webkit-scrollbar-thumb { background: rgba(0,212,255,0.15); border-radius: 4px; }
+
+    .sidebar-section {
+      padding: 16px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .sidebar-title {
+      font-size: 10px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.1em;
+      color: var(--muted); margin-bottom: 12px;
+    }
+
+    /* Stats strip */
+    .mini-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+
+    .mini-stat {
+      background: var(--dark3);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 12px;
+    }
+
+    .mini-stat .val {
+      font-size: 1.2rem; font-weight: 700;
+      font-family: var(--mono);
+      background: linear-gradient(135deg, var(--cyan), var(--blue));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .mini-stat .lbl { font-size: 10px; color: var(--muted); margin-top: 2px; text-transform: uppercase; letter-spacing: 0.05em; }
+
+    /* Filter buttons */
+    .filter-group { display: flex; flex-direction: column; gap: 6px; }
+
+    .filter-btn {
+      display: flex; align-items: center; gap: 8px;
+      padding: 8px 12px; border-radius: 8px;
+      background: var(--dark3); border: 1px solid var(--border);
+      color: var(--text); font-family: var(--font); font-size: 13px;
+      font-weight: 500; cursor: pointer; transition: all 0.15s;
+      text-align: left; width: 100%;
+    }
+
+    .filter-btn:hover { border-color: rgba(0,212,255,0.3); }
+    .filter-btn.active { border-color: rgba(0,212,255,0.5); background: rgba(0,212,255,0.08); }
+
+    .filter-dot {
+      width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
+    }
+
+    .filter-count {
+      margin-left: auto; font-size: 11px;
+      font-family: var(--mono); color: var(--muted);
+    }
+
+    /* Legend */
+    .legend { display: flex; flex-direction: column; gap: 8px; }
+
+    .legend-row { display: flex; align-items: center; gap: 8px; font-size: 12px; }
+
+    .legend-dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+
+    /* Edge weight slider */
+    .slider-wrap { display: flex; flex-direction: column; gap: 8px; }
+
+    .slider-row { display: flex; align-items: center; gap: 10px; }
+
+    input[type=range] {
+      flex: 1; -webkit-appearance: none; height: 4px;
+      background: rgba(0,212,255,0.15); border-radius: 2px; outline: none;
+    }
+
+    input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none; width: 14px; height: 14px;
+      border-radius: 50%; background: var(--cyan); cursor: pointer;
+    }
+
+    .slider-val {
+      font-family: var(--mono); font-size: 12px;
+      color: var(--cyan); min-width: 18px; text-align: right;
+    }
+
+    /* Search */
+    .search-wrap {
+      display: flex; align-items: center; gap: 6px;
+      background: var(--dark3); border: 1px solid var(--border);
+      border-radius: 8px; padding: 7px 10px;
+    }
+
+    .search-wrap input {
+      background: none; border: none; outline: none;
+      color: var(--text); font-family: var(--font); font-size: 12px; flex: 1;
+    }
+
+    .search-wrap input::placeholder { color: var(--muted); }
+
+    /* Computed at timestamp */
+    .computed-ts { font-size: 10px; color: var(--muted); margin-top: 8px; }
+
+    /* ── GRAPH CANVAS ────────────────────────────────────────────────────── */
+    #graph-container {
+      flex: 1;
+      position: relative;
+      background: var(--dark);
+      /* Subtle radial glow at centre */
+      background-image: radial-gradient(ellipse at 50% 40%, rgba(59,110,248,0.04) 0%, transparent 70%);
+    }
+
+    /* Grid lines on graph bg */
+    #graph-container::before {
+      content: '';
+      position: absolute; inset: 0;
+      background-image:
+        linear-gradient(rgba(0,212,255,0.02) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,212,255,0.02) 1px, transparent 1px);
+      background-size: 60px 60px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    #graph { position: absolute; inset: 0; z-index: 1; }
+
+    /* Loading overlay */
+    #loading-overlay {
+      position: absolute; inset: 0; z-index: 50;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      background: var(--dark);
+      gap: 16px;
+    }
+
+    .spinner {
+      width: 40px; height: 40px;
+      border: 2px solid rgba(0,212,255,0.15);
+      border-top-color: var(--cyan);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .loading-text { font-size: 14px; color: var(--muted); }
+    .loading-sub  { font-size: 12px; color: #334155; }
+
+    /* ── RIGHT PANEL — node detail ───────────────────────────────────────── */
+    #detail-panel {
+      position: absolute;
+      top: 12px; right: 12px;
+      width: 280px;
+      background: rgba(13, 17, 23, 0.96);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 18px;
+      z-index: 100;
+      backdrop-filter: blur(12px);
+      display: none;
+      animation: slideIn 0.15s ease;
+    }
+
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateX(12px); }
+      to   { opacity: 1; transform: translateX(0); }
+    }
+
+    #detail-panel .dp-close {
+      position: absolute; top: 12px; right: 12px;
+      background: none; border: none; color: var(--muted);
+      font-size: 18px; cursor: pointer; line-height: 1;
+      transition: color 0.15s;
+    }
+
+    #detail-panel .dp-close:hover { color: var(--text); }
+
+    .dp-name {
+      font-size: 15px; font-weight: 700;
+      margin-bottom: 2px; padding-right: 20px;
+    }
+
+    .dp-addr {
+      font-size: 10px; color: var(--muted);
+      font-family: var(--mono); margin-bottom: 14px;
+    }
+
+    .dp-group-badge {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 3px 10px; border-radius: 100px;
+      font-size: 10px; font-weight: 700;
+      letter-spacing: 0.06em; text-transform: uppercase;
+      margin-bottom: 14px;
+    }
+
+    .dp-group-badge.smart      { background: rgba(34,197,94,0.12);  color: var(--green);  border: 1px solid rgba(34,197,94,0.25); }
+    .dp-group-badge.suspicious { background: rgba(239,68,68,0.12);  color: var(--red);    border: 1px solid rgba(239,68,68,0.25); }
+    .dp-group-badge.normal     { background: rgba(0,212,255,0.08);  color: var(--cyan);   border: 1px solid rgba(0,212,255,0.2);  }
+    .dp-group-badge.losing     { background: rgba(100,116,139,0.1); color: var(--muted);  border: 1px solid rgba(100,116,139,0.2); }
+
+    .dp-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 14px; }
+
+    .dp-stat {
+      background: var(--dark3); border: 1px solid var(--border);
+      border-radius: 8px; padding: 8px 10px;
+    }
+
+    .dp-stat .dv { font-size: 1.1rem; font-weight: 700; font-family: var(--mono); }
+    .dp-stat .dl { font-size: 10px; color: var(--muted); margin-top: 1px; text-transform: uppercase; letter-spacing: 0.04em; }
+
+    .dp-stat .dv.green  { color: var(--green); }
+    .dp-stat .dv.red    { color: var(--red); }
+    .dp-stat .dv.amber  { color: var(--amber); }
+    .dp-stat .dv.cyan   { color: var(--cyan); }
+
+    /* Insider score bar */
+    .insider-wrap { margin-bottom: 14px; }
+
+    .insider-label {
+      display: flex; justify-content: space-between; align-items: center;
+      font-size: 11px; color: var(--muted); margin-bottom: 5px;
+    }
+
+    .insider-label span { font-weight: 600; color: var(--text); font-family: var(--mono); }
+
+    .insider-bar-bg {
+      height: 6px; background: rgba(255,255,255,0.06);
+      border-radius: 100px; overflow: hidden;
+    }
+
+    .insider-bar {
+      height: 100%; border-radius: 100px;
+      transition: width 0.6s ease;
+    }
+
+    /* Connections list */
+    .dp-connections-title {
+      font-size: 10px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.08em; color: var(--muted); margin-bottom: 8px;
+    }
+
+    .dp-conn-list { display: flex; flex-direction: column; gap: 5px; max-height: 130px; overflow-y: auto; }
+    .dp-conn-list::-webkit-scrollbar { width: 3px; }
+    .dp-conn-list::-webkit-scrollbar-thumb { background: rgba(0,212,255,0.15); }
+
+    .dp-conn-row {
+      display: flex; align-items: center; gap: 7px;
+      padding: 5px 8px; border-radius: 6px;
+      background: var(--dark3); font-size: 11px; cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    .dp-conn-row:hover { background: rgba(0,212,255,0.06); }
+
+    .dp-conn-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+
+    .dp-conn-name { flex: 1; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+    .dp-conn-w {
+      font-family: var(--mono); font-size: 10px; color: var(--muted);
+      white-space: nowrap;
+    }
+
+    .dp-markets-title {
+      font-size: 10px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.08em; color: var(--muted); margin: 10px 0 6px;
+    }
+
+    .dp-market-tag {
+      display: inline-block; padding: 2px 7px; border-radius: 4px;
+      background: rgba(139,92,246,0.1); color: var(--purple);
+      font-size: 10px; margin: 2px; border: 1px solid rgba(139,92,246,0.15);
+      max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+
+    .dp-links { display: flex; gap: 8px; margin-top: 12px; }
+    .dp-link {
+      font-size: 11px; font-weight: 600; color: var(--cyan);
+      text-decoration: none; transition: opacity 0.15s;
+    }
+    .dp-link:hover { opacity: 0.75; }
+
+    /* Insider detail explanation text */
+    .insider-detail {
+      font-size: 10px; color: var(--muted); margin-top: 4px;
+      font-family: var(--mono); line-height: 1.4;
+    }
+
+    /* Cluster badge on node detail */
+    .cluster-badge {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 2px 8px; border-radius: 4px;
+      font-size: 10px; font-weight: 700; letter-spacing: 0.05em;
+      background: rgba(139,92,246,0.1); color: var(--purple);
+      border: 1px solid rgba(139,92,246,0.2); margin-bottom: 10px;
+    }
+
+    /* Cluster list items in sidebar */
+    .cluster-btn {
+      display: flex; align-items: center; gap: 7px;
+      padding: 7px 10px; border-radius: 7px;
+      background: var(--dark3); border: 1px solid var(--border);
+      color: var(--text); font-family: var(--font); font-size: 11px;
+      cursor: pointer; transition: all 0.15s; text-align: left; width: 100%;
+    }
+    .cluster-btn:hover { border-color: rgba(139,92,246,0.3); }
+    .cluster-btn.active { border-color: rgba(139,92,246,0.5); background: rgba(139,92,246,0.08); }
+    .cluster-btn .c-label { font-weight: 600; min-width: 68px; }
+    .cluster-btn .c-size  { color: var(--muted); font-size: 10px; }
+    .cluster-btn .c-ins   { margin-left: auto; font-family: var(--mono); font-size: 10px; }
+
+    /* ── TOAST ───────────────────────────────────────────────────────────── */
+    #toast {
+      position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+      background: var(--dark2); border: 1px solid var(--border);
+      border-radius: 8px; padding: 10px 18px;
+      font-size: 13px; color: var(--text);
+      z-index: 500; display: none;
+      animation: fadeUp 0.2s ease;
+    }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateX(-50%) translateY(8px); }
+      to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+    }
+
+    /* ── RESPONSIVE hide sidebar on mobile ───────────────────────────────── */
+    @media (max-width: 768px) {
+      .sidebar { display: none; }
+      .sidebar.mobile-open {
+        display: flex;
+        position: fixed;
+        top: 56px;
+        left: 0;
+        bottom: 0;
+        width: 280px;
+        z-index: 150;
+        box-shadow: 4px 0 24px rgba(0,0,0,0.5);
+        overflow-y: auto;
+      }
+      #detail-panel { width: calc(100vw - 24px); right: 12px; }
+      .mobile-filter-btn { display: flex; }
+    }
+
+    /* Floating sidebar toggle button (mobile only) */
+    .mobile-filter-btn {
+      display: none;
+      position: fixed;
+      bottom: 24px;
+      left: 16px;
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--cyan), var(--blue));
+      color: #000;
+      font-size: 20px;
+      font-weight: 700;
+      border: none;
+      cursor: pointer;
+      align-items: center;
+      justify-content: center;
+      z-index: 160;
+      box-shadow: 0 4px 16px rgba(0,212,255,0.4);
+      transition: transform 0.2s;
+    }
+    .mobile-filter-btn:active { transform: scale(0.92); }
+  </style>
+</head>
+<body>
+
+  <!-- NAV -->
+  <nav>
+    <a class="nav-logo" href="/">
+      <img src="logo.png" alt="Prediction Market Plug" />
+      <span>Prediction Market Plug</span>
+    </a>
+    <ul class="nav-links" id="nav-links">
+      <li><a href="/#signals">Signals</a></li>
+      <li><a href="/leaderboard.html">Leaderboard</a></li>
+      <li><a href="/graph.html" class="active">Graph</a></li>
+      <li><a href="/backtest.html">Backtest</a></li>
+      <li><a href="/wallet.html">Wallet</a></li>
+      <li><a href="/#pricing">Pricing</a></li>
+      <li><a href="/#community">Community</a></li>
+      <li><a href="/#faq">FAQ</a></li>
+    </ul>
+    <a class="btn btn-primary" href="https://discord.gg/XsFdkjeg" target="_blank" rel="noopener">
+      Join Free →
+    </a>
+    <!-- Hamburger toggle for mobile -->
+    <button class="hamburger" id="hamburger" aria-label="Toggle navigation" aria-expanded="false">
+      <span></span><span></span><span></span>
+    </button>
+  </nav>
+
+  <!-- FULL-SCREEN LAYOUT -->
+  <div class="layout">
+
+    <!-- Mobile floating button to open sidebar filters -->
+    <button class="mobile-filter-btn" id="mobile-filter-btn" aria-label="Open filters">⚙</button>
+
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+
+      <!-- Stats -->
+      <div class="sidebar-section">
+        <div class="sidebar-title">Graph Stats</div>
+        <div class="mini-stats">
+          <div class="mini-stat">
+            <div class="val" id="stat-nodes">—</div>
+            <div class="lbl">Shown</div>
+          </div>
+          <div class="mini-stat">
+            <div class="val" id="stat-total-wallets">—</div>
+            <div class="lbl">Total DB</div>
+          </div>
+          <div class="mini-stat">
+            <div class="val" id="stat-suspicious">—</div>
+            <div class="lbl">Suspicious</div>
+          </div>
+          <div class="mini-stat">
+            <div class="val" id="stat-smart">—</div>
+            <div class="lbl">Smart Money</div>
+          </div>
+          <div class="mini-stat">
+            <div class="val" id="stat-edges">—</div>
+            <div class="lbl">Links</div>
+          </div>
+          <div class="mini-stat">
+            <div class="val" id="stat-connected">—</div>
+            <div class="lbl">Connected</div>
+          </div>
+        </div>
+        <div class="computed-ts" id="computed-ts"></div>
+      </div>
+
+      <!-- Search -->
+      <div class="sidebar-section">
+        <div class="sidebar-title">Search</div>
+        <div class="search-wrap">
+          <span style="color:var(--muted);font-size:13px">🔍</span>
+          <input type="text" id="search-input" placeholder="Wallet name or address…" />
+        </div>
+      </div>
+
+      <!-- Group filters -->
+      <div class="sidebar-section">
+        <div class="sidebar-title">Filter by Group</div>
+        <div class="filter-group">
+          <button class="filter-btn active" data-group="all">
+            <span class="filter-dot" style="background:var(--cyan)"></span>
+            All wallets
+            <span class="filter-count" id="count-all">—</span>
+          </button>
+          <button class="filter-btn" data-group="suspicious">
+            <span class="filter-dot" style="background:var(--red)"></span>
+            🔴 Suspicious timing
+            <span class="filter-count" id="count-suspicious">—</span>
+          </button>
+          <button class="filter-btn" data-group="smart">
+            <span class="filter-dot" style="background:var(--green)"></span>
+            🟢 Smart Money
+            <span class="filter-count" id="count-smart">—</span>
+          </button>
+          <button class="filter-btn" data-group="normal">
+            <span class="filter-dot" style="background:var(--cyan)"></span>
+            🔵 Normal traders
+            <span class="filter-count" id="count-normal">—</span>
+          </button>
+          <button class="filter-btn" data-group="losing">
+            <span class="filter-dot" style="background:var(--muted)"></span>
+            ⚫ Low win-rate
+            <span class="filter-count" id="count-losing">—</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Cluster list -->
+      <div class="sidebar-section">
+        <div class="sidebar-title">Coordination Clusters</div>
+        <div id="cluster-list" style="display:flex;flex-direction:column;gap:5px">
+          <div style="font-size:11px;color:var(--muted)">Loading…</div>
+        </div>
+      </div>
+
+      <!-- Edge weight slider -->
+      <div class="sidebar-section">
+        <div class="sidebar-title">Min. Co-trades (edge weight)</div>
+        <div class="slider-wrap">
+          <div class="slider-row">
+            <input type="range" id="weight-slider" min="2" max="10" value="2" step="1" />
+            <span class="slider-val" id="weight-val">2</span>
+          </div>
+          <div style="font-size:11px;color:var(--muted)">
+            Show only wallets who co-traded ≥ N markets together
+          </div>
+        </div>
+      </div>
+
+      <!-- Legend -->
+      <div class="sidebar-section">
+        <div class="sidebar-title">Node Colour Legend</div>
+        <div class="legend">
+          <div class="legend-row">
+            <div class="legend-dot" style="background:#ef4444;box-shadow:0 0 6px rgba(239,68,68,0.5)"></div>
+            <span style="font-size:12px"><strong style="color:#ef4444">Suspicious</strong> — high pre-resolution win rate</span>
+          </div>
+          <div class="legend-row">
+            <div class="legend-dot" style="background:#22c55e;box-shadow:0 0 6px rgba(34,197,94,0.4)"></div>
+            <span style="font-size:12px"><strong style="color:#22c55e">Smart Money</strong> — ≥65% win rate, 10+ trades</span>
+          </div>
+          <div class="legend-row">
+            <div class="legend-dot" style="background:#00d4ff;box-shadow:0 0 5px rgba(0,212,255,0.3)"></div>
+            <span style="font-size:12px"><strong style="color:#00d4ff">Normal</strong> — active traders</span>
+          </div>
+          <div class="legend-row">
+            <div class="legend-dot" style="background:#475569"></div>
+            <span style="font-size:12px"><strong style="color:#64748b">Low win-rate</strong> — &lt;40% win rate</span>
+          </div>
+          <div class="legend-row" style="margin-top:6px">
+            <div style="height:3px;width:20px;background:rgba(239,68,68,0.4);border-radius:2px"></div>
+            <span style="font-size:11px;color:var(--muted)">Thicker edges = more co-trades</span>
+          </div>
+          <div class="legend-row">
+            <div style="width:20px;height:20px;border-radius:50%;border:2px solid var(--muted);background:transparent;display:flex;align-items:center;justify-content:center;">
+              <div style="width:8px;height:8px;border-radius:50%;background:var(--muted)"></div>
+            </div>
+            <span style="font-size:11px;color:var(--muted)">Larger nodes = more volume</span>
+          </div>
+        </div>
+      </div>
+
+    </aside>
+
+    <!-- GRAPH CANVAS -->
+    <div id="graph-container">
+      <!-- Loading overlay -->
+      <div id="loading-overlay">
+        <div class="spinner"></div>
+        <div class="loading-text">Building wallet coordination graph…</div>
+        <div class="loading-sub" id="loading-sub">Fetching data from API</div>
+      </div>
+
+      <div id="graph"></div>
+
+      <!-- Node detail panel (shown on click) -->
+      <div id="detail-panel">
+        <button class="dp-close" id="dp-close">×</button>
+        <div class="dp-name"    id="dp-name">—</div>
+        <div class="dp-addr"    id="dp-addr">—</div>
+        <div id="dp-badge"></div>
+        <div class="dp-stats">
+          <div class="dp-stat">
+            <div class="dv" id="dp-winrate">—</div>
+            <div class="dl">Win Rate</div>
+          </div>
+          <div class="dp-stat">
+            <div class="dv cyan" id="dp-trades">—</div>
+            <div class="dl">Trades</div>
+          </div>
+          <div class="dp-stat">
+            <div class="dv" id="dp-volume">—</div>
+            <div class="dl">Volume</div>
+          </div>
+          <div class="dp-stat">
+            <div class="dv" id="dp-streak">—</div>
+            <div class="dl">Streak</div>
+          </div>
+        </div>
+        <div class="insider-wrap">
+          <div class="insider-label">
+            Insider Score <span id="dp-insider-pct">0</span>
+          </div>
+          <div class="insider-bar-bg">
+            <div class="insider-bar" id="dp-insider-bar" style="width:0%"></div>
+          </div>
+          <div class="insider-detail" id="dp-insider-detail"></div>
+        </div>
+        <div id="dp-cluster-wrap"></div>        <div id="dp-connections-wrap">
+          <div class="dp-connections-title">Co-trades with</div>
+          <div class="dp-conn-list" id="dp-conn-list"></div>
+        </div>
+        <div id="dp-markets-wrap" style="display:none">
+          <div class="dp-markets-title">Shared markets</div>
+          <div id="dp-market-tags"></div>
+        </div>
+        <div class="dp-links">
+          <a class="dp-link" id="dp-polymarket" href="#" target="_blank" rel="noopener">View on Polymarket →</a>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div id="toast"></div>
+
+<script>
+/**
+ * graph.js — Wallet coordination graph using vis-network.
+ *
+ * Data flow:
+ *   1. Fetch /public/graph-data from the Mac Mini API
+ *   2. Map nodes/edges to vis-network format with colour/size encoding
+ *   3. Render interactive force-directed graph
+ *   4. Wire up sidebar filters, edge weight slider, and node click detail panel
+ *
+ * Node size    = sqrt(totalVolume) normalised to 10–40px
+ * Node colour  = group: suspicious(red) | smart(green) | normal(cyan) | losing(grey)
+ * Edge width   = weight (number of shared co-traded markets) 1–8px
+ * Edge colour  = opacity scaled by weight
+ */
+
+// ── Config ────────────────────────────────────────────────────────────────
+const IS_LOCAL = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+const API_BASE = IS_LOCAL
+  ? 'http://100.125.187.81:4001'
+  : 'https://api.predictionmarketplug.com';
+
+// ── State ─────────────────────────────────────────────────────────────────
+let rawNodes      = [];
+let rawEdges      = [];
+let rawClusters   = [];
+let network       = null;
+let activeGroup   = 'all';
+let activeCluster = null;  // null = all clusters
+let minWeight     = 2;
+let selectedNode  = null;
+
+// ── Helpers ───────────────────────────────────────────────────────────────
+
+/**
+ * Escape HTML special characters to prevent XSS when inserting API-sourced
+ * strings into innerHTML. Always apply to any untrusted string.
+ */
+function escapeHtml(str) {
+  if (str == null) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function fmtUsd(n) {
+  if (!n) return '$0';
+  if (n >= 1_000_000) return '$' + (n / 1_000_000).toFixed(1) + 'M';
+  if (n >= 1_000)     return '$' + (n / 1_000).toFixed(0) + 'K';
+  return '$' + Math.round(n);
+}
+
+function fmtNum(n) {
+  if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + 'M';
+  if (n >= 1_000)     return (n / 1_000).toFixed(0) + 'K';
+  return String(n ?? '—');
+}
+
+function relTime(ms) {
+  const s = Math.floor((Date.now() - ms) / 1000);
+  if (s < 60)    return 'just now';
+  if (s < 3600)  return Math.floor(s / 60) + 'm ago';
+  if (s < 86400) return Math.floor(s / 3600) + 'h ago';
+  return Math.floor(s / 86400) + 'd ago';
+}
+
+/** Map a group name to vis-network colours. */
+function groupColour(group) {
+  switch (group) {
+    case 'suspicious': return { bg: '#ef4444', border: '#b91c1c', highlight: '#fca5a5', shadow: 'rgba(239,68,68,0.6)' };
+    case 'smart':      return { bg: '#22c55e', border: '#15803d', highlight: '#86efac', shadow: 'rgba(34,197,94,0.5)'  };
+    case 'losing':     return { bg: '#334155', border: '#1e293b', highlight: '#475569', shadow: 'rgba(51,65,85,0.3)'   };
+    default:           return { bg: '#0ea5e9', border: '#0369a1', highlight: '#7dd3fc', shadow: 'rgba(14,165,233,0.4)' };
+  }
+}
+
+/** Normalise volume to node size 10–40px using sqrt scaling. */
+function nodeSize(volume) {
+  const min = 10, max = 40;
+  const sqrtVol = Math.sqrt(Math.max(volume || 0, 1));
+  // Volumes roughly range from ~1K to ~2.5M → sqrt: 31 to 1581
+  const normalised = Math.min(sqrtVol / 50, 1);
+  return min + normalised * (max - min);
+}
+
+/** Edge width scaled by distinct shared-market count (2–20). */
+function edgeWidth(weight) {
+  return Math.min(1 + (weight - 2) * 0.9, 10);
+}
+
+/** RGBA edge colour — hotter (more markets) = more opaque. */
+function edgeColour(weight) {
+  const alpha = Math.min(0.12 + weight * 0.07, 0.8);
+  return `rgba(239,68,68,${alpha})`;
+}
+
+/** Format seconds as "2m 15s", "1h 3m", etc. */
+function fmtDelta(secs) {
+  if (!secs) return '—';
+  if (secs < 60)   return secs + 's';
+  if (secs < 3600) return Math.floor(secs/60) + 'm ' + (secs%60) + 's';
+  return Math.floor(secs/3600) + 'h ' + Math.floor((secs%3600)/60) + 'm';
+}
+
+/** Show toast message. */
+function toast(msg, ms = 2500) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.style.display = 'block';
+  clearTimeout(el._timer);
+  el._timer = setTimeout(() => { el.style.display = 'none'; }, ms);
+}
+
+// ── Build vis-network datasets from raw data ──────────────────────────────
+
+function buildVisData(nodes, edges) {
+  const visNodes = nodes.map(n => {
+    const col   = groupColour(n.group);
+    const size  = nodeSize(n.totalVolume);
+    return {
+      id:     n.id,
+      label:  n.label,
+      title:  `${n.label}\nWin rate: ${n.winRate?.toFixed(1)}%\nTrades: ${n.totalTrades}\nVolume: ${fmtUsd(n.totalVolume)}`,
+      size,
+      color: {
+        background:  col.bg,
+        border:      col.border,
+        highlight:   { background: col.highlight, border: col.border },
+        hover:       { background: col.highlight, border: col.border },
+      },
+      font:   { color: '#e2e8f0', size: size > 20 ? 12 : 10, face: 'Space Grotesk' },
+      shadow: { enabled: true, color: col.shadow, size: 12, x: 0, y: 0 },
+      // Store raw data for detail panel
+      _data: n,
+    };
+  });
+
+  const visEdges = edges.map((e, i) => ({
+    id:    i,
+    from:  e.from,
+    to:    e.to,
+    width: edgeWidth(e.weight),
+    color: { color: edgeColour(e.weight), highlight: '#ef4444', hover: '#f87171', opacity: 0.9 },
+    smooth: { enabled: true, type: 'dynamic', roundness: 0.3 },
+    _data: e,
+  }));
+
+  return { visNodes, visEdges };
+}
+
+// ── Render / re-render graph ──────────────────────────────────────────────
+
+function renderGraph(nodes, edges) {
+  const { visNodes, visEdges } = buildVisData(nodes, edges);
+
+  const container = document.getElementById('graph');
+
+  // Dynamically tune physics based on graph size.
+  // For large graphs (>600 nodes), disable physics entirely and use a
+  // pre-stabilized layout so the browser stays responsive.
+  // For medium graphs, use fast BarnesHut. For small graphs, full simulation.
+  const isLarge  = nodes.length > 600;
+  const isMedium = nodes.length > 200;
+
+  const options = {
+    physics: isLarge ? {
+      // Large graph: skip simulation — position nodes via layout only
+      enabled: false,
+    } : {
+      enabled: true,
+      barnesHut: {
+        gravitationalConstant: isMedium ? -12000 : -8000,
+        centralGravity:        isMedium ? 0.15   : 0.25,
+        springLength:          isMedium ? 120    : 140,
+        springConstant:        0.04,
+        damping:               0.2,
+        avoidOverlap:          0.3,
+      },
+      stabilization: {
+        iterations:     isMedium ? 80 : 150,
+        updateInterval: isMedium ? 10 : 25,
+      },
+    },
+    layout: isLarge ? {
+      // For very large graphs use a faster random layout
+      randomSeed:         42,
+      improvedLayout:     false,
+    } : {
+      randomSeed:         42,
+      improvedLayout:     true,
+    },
+    interaction: {
+      hover:            true,
+      tooltipDelay:     200,
+      hideEdgesOnDrag:  true,
+      multiselect:      false,
+      zoomView:         true,
+      // For large graphs, hide edges while moving to keep it snappy
+      hideEdgesOnMove:  isLarge,
+    },
+    nodes: {
+      shape:               'dot',
+      borderWidth:         2,
+      borderWidthSelected: 3,
+    },
+    edges: {
+      arrows:         { to: { enabled: false } },
+      selectionWidth: 3,
+    },
+  };
+
+  /** Hide the loading overlay — called either immediately (large graph with
+   *  physics disabled, where 'stabilized' never fires) or on stabilization. */
+  function hideOverlay() {
+    document.getElementById('loading-overlay').style.display = 'none';
+  }
+
+  if (network) {
+    // Update existing network data and reconfigure options in case size changed
+    network.setOptions(options);
+    network.setData({
+      nodes: new vis.DataSet(visNodes),
+      edges: new vis.DataSet(visEdges),
+    });
+    // When physics is off the graph is ready immediately
+    if (isLarge) hideOverlay();
+    else network.once('stabilized', hideOverlay);
+  } else {
+    network = new vis.Network(container, {
+      nodes: new vis.DataSet(visNodes),
+      edges: new vis.DataSet(visEdges),
+    }, options);
+
+    // For large graphs (physics disabled) the layout is ready immediately.
+    // For smaller graphs, wait for the physics simulation to settle.
+    if (isLarge) {
+      // Small delay lets vis-network finish its initial render pass
+      setTimeout(hideOverlay, 300);
+    } else {
+      network.once('stabilized', hideOverlay);
+    }
+
+    // Node click → detail panel
+    network.on('click', params => {
+      if (params.nodes.length === 0) {
+        closeDetailPanel();
+        return;
+      }
+      const nodeId = params.nodes[0];
+      const node   = visNodes.find(n => n.id === nodeId);
+      if (node) showDetailPanel(node._data, visEdges, visNodes);
+    });
+
+    // Double-click → focus + expand neighbours
+    network.on('doubleClick', params => {
+      if (params.nodes.length > 0) {
+        network.focus(params.nodes[0], { scale: 1.4, animation: { duration: 600 } });
+      }
+    });
+  }
+
+  // Update sidebar counts
+  updateSidebarCounts(nodes);
+}
+
+// ── Cluster list ──────────────────────────────────────────────────────────
+
+function renderClusterList(clusters) {
+  const el = document.getElementById('cluster-list');
+  if (!clusters.length) {
+    el.innerHTML = `<div style="font-size:11px;color:var(--muted)">No clusters detected</div>`;
+    return;
+  }
+  // Show top 8 clusters
+  el.innerHTML = [`
+    <button class="cluster-btn active" data-cluster="all">
+      <span class="c-label">All clusters</span>
+      <span class="c-size">${rawNodes.length} wallets</span>
+    </button>`]
+    .concat(clusters.slice(0, 8).map(c => {
+      const insCol = c.topInsider >= 55 ? 'var(--red)' : c.topInsider >= 30 ? 'var(--amber)' : 'var(--muted)';
+      return `
+        <button class="cluster-btn" data-cluster="${escapeHtml(c.index)}">
+          <span class="c-label">${escapeHtml(c.label)}</span>
+          <span class="c-size">${escapeHtml(c.size)} wallets</span>
+          <span class="c-ins" style="color:${insCol}">${c.topInsider > 0 ? '🔴 ' + escapeHtml(c.topInsider) : '—'}</span>
+        </button>`;
+    })).join('');
+
+  el.querySelectorAll('.cluster-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      el.querySelectorAll('.cluster-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      activeCluster = btn.dataset.cluster === 'all' ? null : parseInt(btn.dataset.cluster);
+      closeDetailPanel();
+      applyFilters();
+      toast(btn.dataset.cluster === 'all' ? 'Showing all clusters' : `Isolated ${btn.querySelector('.c-label').textContent}`);
+    });
+  });
+}
+
+// ── Apply active filters and re-render ───────────────────────────────────
+
+function applyFilters() {
+  let nodes = rawNodes;
+  let edges = rawEdges;
+
+  if (activeGroup !== 'all') {
+    const ids = new Set(nodes.filter(n => n.group === activeGroup).map(n => n.id));
+    nodes = nodes.filter(n => ids.has(n.id));
+    edges = edges.filter(e => ids.has(e.from) && ids.has(e.to));
+  }
+
+  if (activeCluster !== null) {
+    const ids = new Set(nodes.filter(n => n.clusterIndex === activeCluster).map(n => n.id));
+    nodes = nodes.filter(n => ids.has(n.id));
+    edges = edges.filter(e => ids.has(e.from) && ids.has(e.to));
+  }
+
+  edges = edges.filter(e => e.weight >= minWeight);
+  const connectedIds = new Set(edges.flatMap(e => [e.from, e.to]));
+  nodes = nodes.filter(n => connectedIds.has(n.id));
+
+  const q = document.getElementById('search-input').value.toLowerCase().trim();
+  if (q) {
+    const matchIds = new Set(rawNodes.filter(n =>
+      n.label.toLowerCase().includes(q) ||
+      (n.truncAddr || '').toLowerCase().includes(q) ||
+      (n.id || '').toLowerCase().includes(q)
+    ).map(n => n.id));
+    nodes = nodes.filter(n => matchIds.has(n.id));
+    edges = edges.filter(e => matchIds.has(e.from) && matchIds.has(e.to));
+  }
+
+  renderGraph(nodes, edges);
+  document.getElementById('stat-nodes').textContent = fmtNum(nodes.length);
+  document.getElementById('stat-edges').textContent = fmtNum(edges.length);
+}
+
+function updateSidebarCounts(nodes) {
+  const counts = { all: rawNodes.length, suspicious: 0, smart: 0, normal: 0, losing: 0 };
+  for (const n of rawNodes) counts[n.group] = (counts[n.group] || 0) + 1;
+  document.getElementById('count-all').textContent        = fmtNum(counts.all);
+  document.getElementById('count-suspicious').textContent = fmtNum(counts.suspicious);
+  document.getElementById('count-smart').textContent      = fmtNum(counts.smart);
+  document.getElementById('count-normal').textContent     = fmtNum(counts.normal);
+  document.getElementById('count-losing').textContent     = fmtNum(counts.losing);
+  document.getElementById('stat-suspicious').textContent  = fmtNum(counts.suspicious);
+  document.getElementById('stat-smart').textContent       = fmtNum(counts.smart);
+}
+
+// ── Detail panel ──────────────────────────────────────────────────────────
+
+function showDetailPanel(node, visEdges, visNodes) {
+  selectedNode = node;
+
+  const connEdges  = visEdges.filter(e => e.from === node.id || e.to === node.id);
+  const connNodeIds = connEdges.map(e => e.from === node.id ? e.to : e.from);
+  const connNodes  = connNodeIds.map(id => {
+    const vn = visNodes.find(n => n.id === id);
+    return vn ? vn._data : null;
+  }).filter(Boolean);
+
+  document.getElementById('dp-name').textContent = node.label;
+  // Show truncated address (full address is not exposed on the public endpoint)
+  document.getElementById('dp-addr').textContent = node.truncAddr || node.id.slice(0, 10) + '...' + node.id.slice(-6);
+
+  const badgeEl   = document.getElementById('dp-badge');
+  const badgeText = {
+    suspicious: '🔴 Suspicious Timing',
+    smart:      '🟢 Smart Money',
+    normal:     '🔵 Active Trader',
+    losing:     '⚫ Low Win-Rate',
+  };
+  badgeEl.innerHTML = `<div class="dp-group-badge ${escapeHtml(node.group)}">${escapeHtml(badgeText[node.group] || node.group)}</div>`;
+
+  // Cluster badge
+  const clusterWrap = document.getElementById('dp-cluster-wrap');
+  if (node.clusterIndex >= 0) {
+    const clusterLabel = rawClusters.find(c => c.index === node.clusterIndex)?.label || `Cluster ${node.clusterIndex}`;
+    clusterWrap.innerHTML = `<div class="cluster-badge">🔗 ${escapeHtml(clusterLabel)} · ${escapeHtml(node.clusterSize)} wallets</div>`;
+  } else {
+    clusterWrap.innerHTML = '';
+  }
+
+  // Stats
+  const wr   = node.winRate;
+  const wrEl = document.getElementById('dp-winrate');
+  wrEl.textContent = wr != null ? wr.toFixed(1) + '%' : '—';
+  wrEl.className   = 'dv ' + (wr >= 65 ? 'green' : wr <= 40 ? 'red' : 'amber');
+
+  document.getElementById('dp-trades').textContent = node.totalTrades
+    ? `${fmtNum(node.correctTrades)}/${fmtNum(node.totalTrades)}`
+    : '—';
+  document.getElementById('dp-volume').textContent = fmtUsd(node.totalVolume);
+
+  const streak   = node.streak || 0;
+  const streakEl = document.getElementById('dp-streak');
+  streakEl.textContent = streak > 0 ? '+' + streak + ' W' : streak < 0 ? streak + ' L' : '—';
+  streakEl.className   = 'dv ' + (streak > 0 ? 'green' : streak < 0 ? 'red' : '');
+
+  // Insider score + detail
+  const ins = node.insiderScore || 0;
+  document.getElementById('dp-insider-pct').textContent = ins + '/100';
+  const bar = document.getElementById('dp-insider-bar');
+  bar.style.width      = ins + '%';
+  bar.style.background = ins >= 55
+    ? 'linear-gradient(90deg,#ef4444,#b91c1c)'
+    : ins >= 30
+    ? 'linear-gradient(90deg,#f59e0b,#d97706)'
+    : 'linear-gradient(90deg,#22c55e,#15803d)';
+  document.getElementById('dp-insider-detail').textContent = node.insiderDetail || '';
+
+  // Connections list — sorted by edge weight, show avg time delta
+  const connList = document.getElementById('dp-conn-list');
+  if (connEdges.length > 0) {
+    const pairs = connEdges.map(e => {
+      const otherId = e.from === node.id ? e.to : e.from;
+      const other   = connNodes.find(n => n.id === otherId);
+      return { node: other, edge: e._data };
+    }).filter(x => x.node).sort((a, b) => b.edge.weight - a.edge.weight);
+
+    connList.innerHTML = pairs.slice(0, 10).map(({ node: cn, edge }) => {
+      const col = groupColour(cn.group);
+      const deltaStr = edge.avgTimeDeltaSec ? fmtDelta(edge.avgTimeDeltaSec) + ' avg gap' : '';
+      // cn.id is a wallet address used as a data attribute — escape it to be safe
+      return `
+        <div class="dp-conn-row" onclick="focusNode('${escapeHtml(cn.id)}')">
+          <div class="dp-conn-dot" style="background:${escapeHtml(col.bg)}"></div>
+          <div style="flex:1;min-width:0">
+            <div class="dp-conn-name">${escapeHtml(cn.label)}</div>
+            ${deltaStr ? `<div style="font-size:9px;color:var(--muted);font-family:var(--mono)">${escapeHtml(deltaStr)}</div>` : ''}
+          </div>
+          <span class="dp-conn-w">${escapeHtml(edge.weight)} markets</span>
+        </div>`;
+    }).join('');
+    document.getElementById('dp-connections-wrap').style.display = '';
+  } else {
+    document.getElementById('dp-connections-wrap').style.display = 'none';
+  }
+
+  // Shared markets from strongest edge
+  const strongest = [...connEdges].sort((a,b) => (b._data?.weight||0) - (a._data?.weight||0))[0];
+  const markets   = strongest?._data?.markets || [];
+  const cats      = strongest?._data?.categories || [];
+  if (markets.length > 0) {
+    document.getElementById('dp-markets-wrap').style.display = '';
+    let html = markets.map(m =>
+      `<span class="dp-market-tag" title="${escapeHtml(m)}">${escapeHtml(m.length > 42 ? m.slice(0,40) + '…' : m)}</span>`
+    ).join('');
+    if (cats.length) html += '<br/>' + cats.map(c =>
+      `<span class="dp-market-tag" style="background:rgba(0,212,255,0.08);color:var(--cyan);border-color:rgba(0,212,255,0.15)">${escapeHtml(c)}</span>`
+    ).join('');
+    document.getElementById('dp-market-tags').innerHTML = html;
+  } else {
+    document.getElementById('dp-markets-wrap').style.display = 'none';
+  }
+
+  // Best category
+  if (node.bestCategory) {
+    document.getElementById('dp-addr').textContent +=
+      ` · Best: ${node.bestCategory}`;
+  }
+
+  // Polymarket profile link — node.id is the full wallet address (needed by vis-network
+  // for edge routing). It's already public on-chain so safe to use in a link.
+  document.getElementById('dp-polymarket').href =
+    node.id ? `https://polymarket.com/profile/${node.id}` : '#';
+
+  document.getElementById('detail-panel').style.display = 'block';
+}
+
+function closeDetailPanel() {
+  document.getElementById('detail-panel').style.display = 'none';
+  selectedNode = null;
+}
+
+function focusNode(nodeId) {
+  if (!network) return;
+  network.selectNodes([nodeId]);
+  network.focus(nodeId, { scale: 1.2, animation: { duration: 500 } });
+  const node = rawNodes.find(n => n.id === nodeId);
+  // Rebuild and re-show for the focused node — need the full visEdges/Nodes
+  // Simple approach: re-trigger click via network
+  network.emit('click', { nodes: [nodeId], edges: [] });
+}
+
+// ── Load data ─────────────────────────────────────────────────────────────
+
+async function loadGraphData(retryCount = 0) {
+  document.getElementById('loading-sub').textContent = 'Fetching data from API…';
+  try {
+    const data = await fetch(`${API_BASE}/public/graph-data`).then(r => r.json());
+
+    if (!data.nodes?.length) {
+      if (data.retryAfterMs && retryCount < 6) {
+        const wait = data.retryAfterMs || 5000;
+        document.getElementById('loading-sub').textContent =
+          `Graph computing on server… retrying in ${Math.round(wait/1000)}s`;
+        setTimeout(() => loadGraphData(retryCount + 1), wait);
+        return;
+      }
+      document.getElementById('loading-overlay').innerHTML = `
+        <div style="text-align:center;color:var(--muted)">
+          <div style="font-size:2rem;margin-bottom:12px">📊</div>
+          <div style="font-size:14px">No coordination graph data yet.</div>
+          <div style="font-size:12px;margin-top:8px">The scanner needs to collect more wallet trade history.</div>
+        </div>`;
+      return;
+    }
+
+    rawNodes    = data.nodes;
+    rawEdges    = data.edges;
+    rawClusters = data.clusters || [];
+
+    document.getElementById('loading-sub').textContent =
+      `${data.nodes.length.toLocaleString()} of ${(data.totalWallets||data.nodes.length).toLocaleString()} wallets · ${data.edges.length.toLocaleString()} connections — rendering…`;
+
+    if (data.computedAt) {
+      document.getElementById('computed-ts').textContent =
+        'Graph computed ' + relTime(data.computedAt);
+    }
+
+    // Update top-level stats
+    document.getElementById('stat-suspicious').textContent   = fmtNum(data.suspiciousCount || 0);
+    document.getElementById('stat-smart').textContent        = fmtNum(data.smartCount || 0);
+    document.getElementById('stat-total-wallets').textContent = fmtNum(data.totalWallets || 0);
+    document.getElementById('stat-connected').textContent    = fmtNum(data.totalConnected || 0);
+
+    // Render cluster list in sidebar
+    renderClusterList(rawClusters);
+
+    applyFilters();
+
+  } catch (err) {
+    console.error('[graph] Load error:', err);
+    if (retryCount < 3) {
+      setTimeout(() => loadGraphData(retryCount + 1), 5000);
+      document.getElementById('loading-sub').textContent = 'Connection failed — retrying…';
+    } else {
+      document.getElementById('loading-overlay').innerHTML = `
+        <div style="text-align:center;color:var(--muted)">
+          <div style="font-size:2rem;margin-bottom:12px">⚠️</div>
+          <div style="font-size:14px">Could not reach API server.</div>
+          <div style="font-size:12px;margin-top:8px">Make sure the Mac Mini API is running on port 4001.</div>
+        </div>`;
+    }
+  }
+}
+
+// ── Event wiring ──────────────────────────────────────────────────────────
+
+// Group filter buttons
+document.querySelectorAll('.filter-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    activeGroup = btn.dataset.group;
+    closeDetailPanel();
+    applyFilters();
+    toast(`Showing ${btn.dataset.group === 'all' ? 'all' : btn.dataset.group} wallets`);
+  });
+});
+
+// Edge weight slider
+document.getElementById('weight-slider').addEventListener('input', e => {
+  minWeight = parseInt(e.target.value);
+  document.getElementById('weight-val').textContent = minWeight;
+  closeDetailPanel();
+  applyFilters();
+});
+
+// Search
+let searchTimer;
+document.getElementById('search-input').addEventListener('input', () => {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(() => {
+    closeDetailPanel();
+    applyFilters();
+  }, 300);
+});
+
+// Close detail panel
+document.getElementById('dp-close').addEventListener('click', closeDetailPanel);
+
+// ── Mobile hamburger toggle ────────────────────────────────────────────────
+const hamburgerBtn = document.getElementById('hamburger');
+const navLinks     = document.getElementById('nav-links');
+if (hamburgerBtn && navLinks) {
+  hamburgerBtn.addEventListener('click', () => {
+    const isOpen = navLinks.classList.toggle('open');
+    hamburgerBtn.setAttribute('aria-expanded', String(isOpen));
+  });
+  // Close drawer when a link is clicked
+  navLinks.addEventListener('click', e => {
+    if (e.target.tagName === 'A') {
+      navLinks.classList.remove('open');
+      hamburgerBtn.setAttribute('aria-expanded', 'false');
+    }
+  });
+}
+
+// ── Mobile sidebar floating toggle ────────────────────────────────────────
+// On small screens the sidebar is hidden; the floating button opens it as an overlay.
+const mobileSidebarBtn = document.getElementById('mobile-filter-btn');
+const sidebar          = document.querySelector('.sidebar');
+if (mobileSidebarBtn && sidebar) {
+  mobileSidebarBtn.addEventListener('click', () => {
+    sidebar.classList.toggle('mobile-open');
+    mobileSidebarBtn.textContent = sidebar.classList.contains('mobile-open') ? '✕' : '⚙';
+  });
+  // Close when clicking outside the sidebar
+  document.addEventListener('click', e => {
+    if (sidebar.classList.contains('mobile-open') &&
+        !sidebar.contains(e.target) &&
+        e.target !== mobileSidebarBtn) {
+      sidebar.classList.remove('mobile-open');
+      mobileSidebarBtn.textContent = '⚙';
+    }
+  });
+}
+
+// ── Boot ──────────────────────────────────────────────────────────────────
+loadGraphData();
+</script>
+
+</body>
+</html>

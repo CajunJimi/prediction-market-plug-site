@@ -1,0 +1,800 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <!-- ── Beta password gate ────────────────────────────────────────────────
+       Runs before any page content renders. Sets a 7-day cookie on success.
+       Change PASS to update the shared password — redeploy to take effect.
+  ──────────────────────────────────────────────────────────────────────── -->
+  <script>
+  (function(){
+    var COOKIE='pmp_beta_auth', PASS='polymarket2026', DAYS=7;
+    function getCookie(n){var m=document.cookie.match('(^|;)\\s*'+n+'\\s*=\\s*([^;]+)');return m?m.pop():'';}
+    if(getCookie(COOKIE)===PASS)return;
+    document.documentElement.style.visibility='hidden';
+    window.addEventListener('DOMContentLoaded',function(){
+      document.documentElement.style.visibility='';
+      var d=document.createElement('div');
+      d.innerHTML='<div style="position:fixed;inset:0;background:#0a0c10;display:flex;align-items:center;justify-content:center;z-index:99999;font-family:system-ui,sans-serif"><div style="background:#111318;border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:40px;width:320px;text-align:center"><div style="font-size:22px;font-weight:700;color:#e2e8f0;margin-bottom:6px">PredictionMarketPlug</div><div style="font-size:13px;color:#64748b;margin-bottom:24px">Beta — enter password to continue</div><input id="_pw_in" type="password" placeholder="Password" style="width:100%;padding:11px 14px;background:#1f2433;border:1px solid rgba(255,255,255,.1);border-radius:8px;color:#e2e8f0;font-size:14px;outline:none;box-sizing:border-box;margin-bottom:10px" /><div id="_pw_err" style="color:#ef4444;font-size:12px;min-height:18px;margin-bottom:10px"></div><button id="_pw_btn" style="width:100%;padding:11px;background:#00d4ff;color:#000;font-weight:700;font-size:14px;border:none;border-radius:8px;cursor:pointer">Enter</button></div></div>';
+      document.body.prepend(d);
+      function attempt(){
+        var v=document.getElementById('_pw_in').value;
+        if(v===PASS){
+          var e=new Date();e.setDate(e.getDate()+DAYS);
+          document.cookie=COOKIE+'='+PASS+';expires='+e.toUTCString()+';path=/;SameSite=Strict';
+          d.remove();
+        } else {
+          document.getElementById('_pw_err').textContent='Incorrect password';
+          document.getElementById('_pw_in').value='';
+          document.getElementById('_pw_in').focus();
+        }
+      }
+      document.getElementById('_pw_btn').onclick=attempt;
+      document.getElementById('_pw_in').onkeydown=function(e){if(e.key==='Enter')attempt();};
+      document.getElementById('_pw_in').focus();
+    });
+  })();
+  </script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Wallet Lookup — PredictionMarketPlug</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+
+  <!-- Chart.js + date adapter for equity curve -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+
+  <style>
+    /* ── CSS VARIABLES ──────────────────────────────────────────────── */
+    :root {
+      --dark:     #0a0c10;
+      --surface:  #111318;
+      --surface2: #181c24;
+      --surface3: #1f2433;
+      --border:   rgba(255,255,255,0.07);
+      --text:     #e2e8f0;
+      --muted:    #64748b;
+      --cyan:     #00d4ff;
+      --green:    #22c55e;
+      --red:      #ef4444;
+      --amber:    #f59e0b;
+      --purple:   #a855f7;
+      --mono:     'JetBrains Mono', monospace;
+      --sans:     'Space Grotesk', sans-serif;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { font-size: 14px; scroll-behavior: smooth; }
+    body { background: var(--dark); color: var(--text); font-family: var(--sans); min-height: 100vh; line-height: 1.5; }
+
+    /* ── NAV ────────────────────────────────────────────────────────── */
+    nav {
+      position: sticky; top: 0; z-index: 100;
+      background: rgba(10,12,16,0.95); backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      padding: 0 24px;
+      display: flex; align-items: center; justify-content: space-between;
+      height: 56px;
+    }
+    .nav-brand { font-size: 15px; font-weight: 700; color: var(--cyan); letter-spacing: -0.3px; text-decoration: none; }
+    .nav-links  { display: flex; gap: 6px; list-style: none; }
+    .nav-links a { color: var(--muted); text-decoration: none; font-size: 13px; font-weight: 500; padding: 6px 10px; border-radius: 6px; transition: color .2s, background .2s; }
+    .nav-links a:hover, .nav-links a.active { color: var(--text); background: var(--surface2); }
+    .hamburger { display: none; background: none; border: 1px solid var(--border); color: var(--muted); padding: 6px 10px; border-radius: 6px; cursor: pointer; font-size: 16px; }
+    @media (max-width: 768px) {
+      .hamburger { display: block; }
+      .nav-links { display: none; position: absolute; top: 56px; left: 0; right: 0; flex-direction: column; background: var(--surface); padding: 12px; border-bottom: 1px solid var(--border); }
+      .nav-links.open { display: flex; }
+    }
+
+    /* ── LAYOUT ─────────────────────────────────────────────────────── */
+    .page-wrap { max-width: 1200px; margin: 0 auto; padding: 40px 24px; }
+    section.card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 24px; margin-bottom: 24px; }
+    section.card h2 { font-size: 15px; font-weight: 600; color: var(--text); margin-bottom: 16px; letter-spacing: -0.2px; }
+
+    /* ── SEARCH BOX ─────────────────────────────────────────────────── */
+    .search-hero {
+      text-align: center;
+      padding: 56px 24px 40px;
+    }
+    .search-hero h1 { font-size: 28px; font-weight: 700; letter-spacing: -0.6px; margin-bottom: 8px; }
+    .search-hero h1 span { color: var(--cyan); }
+    .search-hero p { color: var(--muted); font-size: 14px; margin-bottom: 28px; }
+    .search-row {
+      display: flex; gap: 8px; max-width: 640px; margin: 0 auto;
+    }
+    .search-row input {
+      flex: 1;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-family: var(--mono);
+      font-size: 13px;
+      padding: 12px 16px;
+      outline: none;
+      transition: border-color .2s;
+    }
+    .search-row input:focus { border-color: var(--cyan); }
+    .search-row input::placeholder { color: var(--muted); }
+    .btn-search {
+      padding: 12px 22px;
+      background: var(--cyan);
+      color: #000;
+      font-weight: 700;
+      font-size: 13px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: opacity .2s;
+      white-space: nowrap;
+    }
+    .btn-search:hover { opacity: .85; }
+    .btn-search:disabled { opacity: .45; cursor: default; }
+
+    /* ── ERROR / EMPTY STATES ───────────────────────────────────────── */
+    .state-box {
+      text-align: center; padding: 60px 24px;
+      color: var(--muted); font-size: 14px;
+    }
+    .state-box .icon { font-size: 36px; margin-bottom: 12px; }
+    .state-box strong { color: var(--text); }
+
+    /* ── PROFILE HEADER ─────────────────────────────────────────────── */
+    .profile-header {
+      display: flex; align-items: center; gap: 20px; flex-wrap: wrap;
+    }
+    .avatar {
+      width: 56px; height: 56px; border-radius: 50%;
+      background: linear-gradient(135deg, var(--cyan), var(--purple));
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px; font-weight: 700; color: #000; flex-shrink: 0;
+    }
+    .profile-meta h2 { font-size: 20px; font-weight: 700; letter-spacing: -0.4px; }
+    .profile-meta .addr { font-family: var(--mono); font-size: 11px; color: var(--muted); margin-top: 4px; }
+    .profile-meta .tags { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+    .tag { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 4px; }
+    .tag.db    { background: rgba(0,212,255,.15); color: var(--cyan); }
+    .tag.live  { background: rgba(34,197,94,.15);  color: var(--green); }
+    .tag.poly  { background: rgba(168,85,247,.15); color: var(--purple); }
+    .profile-link { margin-left: auto; }
+    .profile-link a {
+      display: inline-flex; align-items: center; gap: 6px;
+      font-size: 12px; font-weight: 600; color: var(--muted);
+      border: 1px solid var(--border); padding: 6px 12px; border-radius: 6px;
+      text-decoration: none; transition: color .2s, border-color .2s;
+    }
+    .profile-link a:hover { color: var(--text); border-color: var(--text); }
+
+    /* ── STAT GRID ──────────────────────────────────────────────────── */
+    .stat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+    .stat-card {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 14px 16px;
+    }
+    .stat-card .label { font-size: 11px; color: var(--muted); font-weight: 600; letter-spacing: .04em; text-transform: uppercase; margin-bottom: 6px; }
+    .stat-card .value { font-size: 22px; font-weight: 700; letter-spacing: -0.5px; color: var(--text); font-family: var(--mono); }
+    .stat-card .value.green  { color: var(--green); }
+    .stat-card .value.red    { color: var(--red); }
+    .stat-card .value.cyan   { color: var(--cyan); }
+    .stat-card .value.amber  { color: var(--amber); }
+    .stat-card .sub { font-size: 11px; color: var(--muted); margin-top: 4px; }
+
+    /* ── CHART CONTAINERS ───────────────────────────────────────────── */
+    .chart-wrap { position: relative; height: 280px; }
+
+    /* ── DATA BADGE ─────────────────────────────────────────────────── */
+    .data-badge {
+      display: inline-flex; align-items: center; gap: 6px;
+      font-size: 11px; color: var(--amber); background: rgba(245,158,11,.12);
+      border: 1px solid rgba(245,158,11,.3); border-radius: 6px;
+      padding: 4px 10px; margin-bottom: 16px;
+    }
+
+    /* ── TRADE TABLE ────────────────────────────────────────────────── */
+    .trade-table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+    thead th {
+      text-align: left; padding: 8px 12px;
+      font-size: 11px; font-weight: 600; text-transform: uppercase;
+      letter-spacing: .04em; color: var(--muted);
+      border-bottom: 1px solid var(--border);
+      white-space: nowrap;
+    }
+    tbody tr { border-bottom: 1px solid rgba(255,255,255,0.04); transition: background .15s; }
+    tbody tr:hover { background: var(--surface2); }
+    tbody td { padding: 10px 12px; }
+    .pill {
+      display: inline-block; padding: 2px 8px; border-radius: 4px;
+      font-size: 11px; font-weight: 700;
+    }
+    .pill.win  { background: rgba(34,197,94,.15);  color: var(--green); }
+    .pill.loss { background: rgba(239,68,68,.15);   color: var(--red); }
+    .pill.buy  { background: rgba(0,212,255,.12);   color: var(--cyan); }
+    .pill.sell { background: rgba(168,85,247,.12);  color: var(--purple); }
+
+    /* ── CATEGORY BAR ───────────────────────────────────────────────── */
+    .cat-list { display: flex; flex-direction: column; gap: 10px; }
+    .cat-row { display: flex; flex-direction: column; gap: 4px; }
+    .cat-row-top { display: flex; justify-content: space-between; font-size: 12px; }
+    .cat-row-top .name { color: var(--text); font-weight: 500; }
+    .cat-row-top .meta { color: var(--muted); }
+    .bar-bg { background: var(--surface3); border-radius: 4px; height: 6px; overflow: hidden; }
+    .bar-fill { height: 100%; border-radius: 4px; background: var(--cyan); transition: width 0.6s ease; }
+    .bar-fill.green-bar { background: var(--green); }
+
+    /* ── TOP MARKETS ────────────────────────────────────────────────── */
+    .market-list { display: flex; flex-direction: column; gap: 8px; }
+    .market-item {
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 8px; padding: 10px 14px;
+      display: flex; align-items: center; gap: 12px;
+    }
+    .market-item .q { flex: 1; font-size: 12.5px; line-height: 1.4; color: var(--text); }
+    .market-item .wr { font-size: 13px; font-weight: 700; font-family: var(--mono); white-space: nowrap; }
+
+    /* ── CURVE TOGGLE ───────────────────────────────────────────────── */
+    .curve-toggle {
+      background: none; border: none; color: var(--muted); font-size: 12px;
+      font-weight: 600; padding: 4px 10px; border-radius: 4px; cursor: pointer;
+      transition: background .15s, color .15s; font-family: var(--sans);
+    }
+    .curve-toggle.active { background: var(--surface); color: var(--text); }
+    .curve-toggle:hover:not(.active) { color: var(--text); }
+
+    /* ── LOADING SPINNER ────────────────────────────────────────────── */
+    .spinner {
+      display: inline-block; width: 24px; height: 24px;
+      border: 3px solid var(--border); border-top-color: var(--cyan);
+      border-radius: 50%; animation: spin 0.7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── GRID 2-UP ──────────────────────────────────────────────────── */
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+    @media (max-width: 768px) { .grid-2 { grid-template-columns: 1fr; } }
+
+    /* ── LIVE BANNER ────────────────────────────────────────────────── */
+    .live-badge {
+      display: inline-flex; align-items: center; gap: 6px;
+      font-size: 11px; font-weight: 600; color: var(--green);
+      background: rgba(34,197,94,.12); border: 1px solid rgba(34,197,94,.3);
+      border-radius: 6px; padding: 3px 9px;
+    }
+    .live-dot {
+      width: 6px; height: 6px; border-radius: 50%; background: var(--green);
+      animation: pulse 1.5s ease-in-out infinite;
+    }
+    @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:.3; } }
+  </style>
+</head>
+<body>
+
+<!-- ── NAVIGATION ──────────────────────────────────────────────────────── -->
+<nav>
+  <a href="/" class="nav-brand">PredictionMarketPlug</a>
+  <button class="hamburger" id="hamburger" aria-label="Toggle nav">☰</button>
+  <ul class="nav-links" id="nav-links">
+    <li><a href="/leaderboard.html">Leaderboard</a></li>
+    <li><a href="/graph.html">Graph</a></li>
+    <li><a href="/backtest.html">Backtest</a></li>
+    <li><a href="/wallet.html" class="active">Wallet</a></li>
+  </ul>
+</nav>
+
+<!-- ── SEARCH HERO ──────────────────────────────────────────────────────── -->
+  <div class="search-hero">
+  <h1>Wallet <span>Lookup</span></h1>
+  <p>Paste a wallet address <em>or</em> type a Polymarket username (e.g. <code style="font-family:var(--mono);font-size:12px;background:rgba(255,255,255,.07);padding:2px 6px;border-radius:4px">@BoneReader</code>) to get a full trading profile.</p>
+  <div class="search-row">
+    <input
+      type="text"
+      id="addr-input"
+      placeholder="0x… address  or  @username  or  username"
+      autocomplete="off"
+      spellcheck="false"
+    />
+    <button class="btn-search" id="btn-search">Look Up</button>
+  </div>
+</div>
+
+<!-- ── MAIN CONTENT ─────────────────────────────────────────────────────── -->
+<div class="page-wrap" id="main">
+
+  <!-- Placeholder before any search -->
+  <div id="empty-state" class="state-box">
+    <div class="icon">🔍</div>
+    <strong>Enter a wallet address above to begin.</strong>
+    <div style="margin-top:8px">Works for any Polymarket address — even ones not yet in our database. For wallets in our database you'll also get a full equity curve and historical backtest.</div>
+  </div>
+
+  <!-- Shown while loading — multi-step progress messages -->
+  <div id="loading-state" class="state-box" style="display:none">
+    <div class="spinner"></div>
+    <div style="margin-top:16px;color:var(--text);font-weight:600" id="load-step">Fetching trades…</div>
+    <div style="margin-top:6px;color:var(--muted);font-size:12px" id="load-sub">Pulling trade history from Polymarket</div>
+    <div style="margin-top:14px;font-size:11px;color:var(--muted);max-width:360px;text-align:center">
+      First lookup resolves every market outcome live — takes 15–60 s.<br>Cached results are instant.
+    </div>
+  </div>
+
+  <!-- Shown on error -->
+  <div id="error-state" class="state-box" style="display:none">
+    <div class="icon">⚠️</div>
+    <strong id="error-msg">Something went wrong.</strong>
+  </div>
+
+  <!-- Results container — hidden until data loaded -->
+  <div id="results" style="display:none">
+
+    <!-- ── PROFILE HEADER ─────────────────────────────────────────── -->
+    <section class="card">
+      <div class="profile-header">
+        <div class="avatar" id="av-letter">?</div>
+        <div class="profile-meta">
+          <h2 id="pf-name">Unknown Wallet</h2>
+          <div class="addr" id="pf-addr"></div>
+          <div class="tags" id="pf-tags"></div>
+        </div>
+        <div class="profile-link">
+          <a id="poly-link" href="#" target="_blank" rel="noopener">
+            View on Polymarket ↗
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── PERFORMANCE STATS ──────────────────────────────────────── -->
+    <section class="card" id="stats-section">
+      <h2>Performance Statistics <span class="live-badge" style="vertical-align:middle"><span class="live-dot"></span>Live</span></h2>
+      <!-- Trade cap warning — shown when we only have a partial window -->
+      <div id="cap-warning" style="display:none;margin-bottom:16px;padding:12px 16px;background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.35);border-radius:8px;font-size:13px;line-height:1.5">
+        <strong style="color:var(--amber)">⚠ Partial data — 2,000 trade cap hit</strong>
+        <div id="cap-warning-detail" style="color:var(--muted);margin-top:4px"></div>
+      </div>
+      <div class="stat-grid" id="stat-grid"></div>
+    </section>
+
+    <!-- ── EQUITY CURVE ───────────────────────────────────────────── -->
+    <section class="card" id="equity-section">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:16px">
+        <h2 style="margin:0">Equity Curve</h2>
+        <!-- Toggle between equal-stake and real-money curves -->
+        <div style="display:flex;gap:4px;background:var(--surface3);border-radius:6px;padding:3px">
+          <button id="curve-sim-btn" class="curve-toggle active" onclick="setCurveMode('sim')">$100/trade</button>
+          <button id="curve-real-btn" class="curve-toggle" onclick="setCurveMode('real')">Real USD</button>
+        </div>
+      </div>
+      <div id="curve-desc" style="font-size:12px;color:var(--muted);margin-bottom:12px"></div>
+      <div class="chart-wrap"><canvas id="equity-chart"></canvas></div>
+    </section>
+
+    <!-- ── TOP MARKETS ────────────────────────────────────────────── -->
+    <section class="card" id="markets-section">
+      <h2>Top Markets Traded</h2>
+      <div class="market-list" id="top-markets"></div>
+    </section>
+
+    <!-- ── RECENT RESOLVED TRADES ─────────────────────────────────── -->
+    <section class="card" id="recent-section">
+      <h2>Recent Resolved Trades <span class="live-badge" style="vertical-align:middle"><span class="live-dot"></span>Live</span></h2>
+      <div class="trade-table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Result</th>
+              <th>Question</th>
+              <th>Side</th>
+              <th>Price</th>
+              <th>Size (USD)</th>
+              <th>Date</th>
+            </tr>
+          </thead>
+          <tbody id="recent-tbody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ── OPEN / PENDING POSITIONS ───────────────────────────────── -->
+    <section class="card" id="open-section" style="display:none">
+      <h2>Open Positions <span style="font-weight:400;color:var(--muted);font-size:13px">— awaiting resolution</span></h2>
+      <div class="trade-table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Question</th>
+              <th>Outcome Bet</th>
+              <th>Side</th>
+              <th>Price</th>
+              <th>Size (USD)</th>
+              <th>Date</th>
+            </tr>
+          </thead>
+          <tbody id="open-tbody"></tbody>
+        </table>
+      </div>
+    </section>
+
+  </div><!-- /#results -->
+</div>
+
+<script>
+/* ──────────────────────────────────────────────────────────────────────── *
+ *  wallet.html — Wallet Lookup Page
+ *
+ *  Paste any Polymarket wallet address to get a FULL live analysis:
+ *
+ *    1. The server fetches all trades (up to 2,000) from Polymarket's API
+ *    2. Resolves every market outcome live via the CLOB API
+ *    3. Computes win rate, equity curve, drawdown, top markets — all live
+ *    4. Results are cached server-side for 1 hour, so repeat lookups instant
+ *
+ *  Works for ANY wallet — no need to be in our database.
+ * ──────────────────────────────────────────────────────────────────────── */
+
+const API = (location.hostname === 'localhost' || location.hostname === '127.0.0.1')
+  ? 'http://100.125.187.81:4001'           // Mac Mini direct via Tailscale (dev)
+  : 'https://api.predictionmarketplug.com'; // Cloudflare-proxied prod URL
+
+let equityChart = null; // Chart.js instance — reused across lookups
+
+// ── Hamburger nav ────────────────────────────────────────────────────────
+document.getElementById('hamburger').addEventListener('click', () => {
+  document.getElementById('nav-links').classList.toggle('open');
+});
+
+// ── Deep-link support: ?wallet=0x… or ?wallet=@username ─────────────────
+window.addEventListener('DOMContentLoaded', () => {
+  const params = new URLSearchParams(window.location.search);
+  const w = params.get('wallet');
+  if (w) {
+    document.getElementById('addr-input').value = w;
+    lookup(w);
+  }
+});
+
+// ── Search triggers ──────────────────────────────────────────────────────
+document.getElementById('btn-search').addEventListener('click', () => {
+  const val = document.getElementById('addr-input').value.trim();
+  if (!val) return;
+  lookup(val);
+});
+document.getElementById('addr-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') document.getElementById('btn-search').click();
+});
+
+// ── State display helpers ────────────────────────────────────────────────
+function showState(name) {
+  ['empty-state','loading-state','error-state','results'].forEach(id => {
+    document.getElementById(id).style.display = id === name ? '' : 'none';
+  });
+}
+function setLoadStep(step, sub) {
+  const s = document.getElementById('load-step');
+  const b = document.getElementById('load-sub');
+  if (s) s.textContent = step;
+  if (b) b.textContent = sub;
+}
+
+// ── Main lookup — accepts 0x address OR @username OR username ────────────
+async function lookup(raw) {
+  const input = raw.trim();
+  if (!input) return;
+
+  showState('loading-state');
+  document.getElementById('btn-search').disabled = true;
+  setLoadStep('Resolving…', 'Looking up wallet');
+
+  // ── Determine if input is an address or a username ───────────────────
+  let address = null;
+
+  if (/^0x[0-9a-f]{40}$/i.test(input)) {
+    // Already a 0x address
+    address = input.toLowerCase();
+  } else {
+    // Treat as username — strip leading @ if present, then resolve via API
+    const username = input.replace(/^@/, '').trim();
+    setLoadStep('Resolving username…', `Finding wallet for @${username}`);
+    try {
+      const res = await fetch(`${API}/public/resolve-username/${encodeURIComponent(username)}`);
+      const body = await res.json();
+      if (!res.ok) throw new Error(body.error || `Could not resolve "@${username}"`);
+      address = body.address;
+      // Pre-fill the input with the resolved address so the user can see it
+      document.getElementById('addr-input').value = address;
+      history.replaceState({}, '', `?wallet=${encodeURIComponent(address)}`);
+    } catch (err) {
+      showState('error-state');
+      document.getElementById('error-msg').textContent = err.message;
+      document.getElementById('btn-search').disabled = false;
+      return;
+    }
+  }
+
+  // Update URL for shareability
+  history.pushState({}, '', `?wallet=${encodeURIComponent(address)}`);
+
+  // ── Animate loading steps while server fetches + resolves ────────────
+  const steps = [
+    ['Fetching trades…',           'Pulling trade history from Polymarket'],
+    ['Resolving markets…',         'Querying CLOB API for outcome data'],
+    ['Computing equity curve…',    'Calculating P&L per trade'],
+    ['Building profile…',          'Almost done…'],
+  ];
+  let stepIdx = 0;
+  const stepTimer = setInterval(() => {
+    stepIdx = (stepIdx + 1) % steps.length;
+    setLoadStep(steps[stepIdx][0], steps[stepIdx][1]);
+  }, 4000);
+
+  try {
+    const res = await fetch(`${API}/public/wallet/${address}`);
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      throw new Error(body.error || `Server returned ${res.status}`);
+    }
+    const data = await res.json();
+    clearInterval(stepTimer);
+    render(data);
+    showState('results');
+  } catch (err) {
+    clearInterval(stepTimer);
+    showState('error-state');
+    document.getElementById('error-msg').textContent = `Failed to load wallet: ${err.message}`;
+  } finally {
+    document.getElementById('btn-search').disabled = false;
+  }
+}
+
+// ── Curve mode state ─────────────────────────────────────────────────────
+let currentCurveMode = 'sim'; // 'sim' = $100/trade, 'real' = actual USD
+let lastCurve     = [];
+let lastCurveReal = [];
+
+function setCurveMode(mode) {
+  currentCurveMode = mode;
+  document.getElementById('curve-sim-btn').classList.toggle('active',  mode === 'sim');
+  document.getElementById('curve-real-btn').classList.toggle('active', mode === 'real');
+  const data = mode === 'sim' ? lastCurve : lastCurveReal;
+  const desc = mode === 'sim'
+    ? '$100 equal-stake per trade — normalised for fair comparison between traders regardless of bet size'
+    : 'Actual USD P&L — profit/loss calculated at real trade sizes (reflects the trader\'s true dollar returns)';
+  document.getElementById('curve-desc').textContent = desc;
+  renderEquityCurve(data);
+}
+
+// ── Render full profile from API response ────────────────────────────────
+function render(data) {
+  const { address, profile, stats, curve, curveReal, topMarkets, recentTrades, openTrades, inOurDb, fromCache } = data;
+
+  // Cache curves for toggle
+  lastCurve     = curve     || [];
+  lastCurveReal = curveReal || [];
+
+  // ── Profile header ─────────────────────────────────────────────────────
+  const displayName = profile.username || profile.pseudonym
+    || `${address.slice(0,6)}…${address.slice(-4)}`;
+  document.getElementById('av-letter').textContent = (profile.username || address)[0].toUpperCase();
+  document.getElementById('pf-name').textContent   = displayName;
+  document.getElementById('pf-addr').textContent   = address;
+  document.getElementById('poly-link').href        = profile.polymarketUrl;
+
+  const tagsEl = document.getElementById('pf-tags');
+  tagsEl.innerHTML = '';
+  if (stats?.hitTradeCap) tagsEl.innerHTML += '<span class="tag amber" style="background:rgba(245,158,11,.15);color:var(--amber)">⚠ 2k trade cap hit</span>';
+  if (inOurDb)             tagsEl.innerHTML += '<span class="tag db">📦 In our DB</span>';
+  tagsEl.innerHTML += '<span class="tag live">🟢 Live data</span>';
+  if (fromCache) tagsEl.innerHTML += '<span class="tag" style="background:rgba(100,116,139,.15);color:var(--muted)">Cached</span>';
+
+  // ── Trade cap warning banner ───────────────────────────────────────────
+  const capWarn = document.getElementById('cap-warning');
+  if (stats?.hitTradeCap) {
+    capWarn.style.display = '';
+    const days = stats.daysCovered;
+    const detail = days && days <= 3
+      ? `We fetched the most recent 2,000 trades which only covers ~${days} day${days===1?'':'s'} of activity. This trader is very high-volume — their full history spans far more trades. Stats below reflect this limited window only.`
+      : `We fetched the most recent 2,000 trades out of this wallet's full history. Stats may not reflect long-term performance.`;
+    document.getElementById('cap-warning-detail').textContent = detail;
+  } else {
+    capWarn.style.display = 'none';
+  }
+
+  // ── Stats ──────────────────────────────────────────────────────────────
+  if (stats && stats.resolved > 0) {
+    // Use real USD P&L as the headline stat — more meaningful
+    const pnlReal    = stats.finalPnlReal;
+    const pnlRealStr = (pnlReal >= 0 ? '+$' : '-$') + Math.abs(pnlReal).toLocaleString('en', { maximumFractionDigits: 0 });
+    const pnlSim     = stats.finalPnl;
+    const pnlSimStr  = (pnlSim >= 0 ? '+$' : '-$') + Math.abs(pnlSim).toLocaleString('en', { maximumFractionDigits: 0 });
+    const wrCls      = stats.winRate >= 55 ? 'green' : stats.winRate >= 45 ? 'amber' : 'red';
+
+    document.getElementById('stat-grid').innerHTML = `
+      <div class="stat-card">
+        <div class="label">Win Rate</div>
+        <div class="value ${wrCls}">${stats.winRate}%</div>
+        <div class="sub">${stats.wins}W / ${stats.losses}L</div>
+      </div>
+      <div class="stat-card" title="Real P&L based on actual trade sizes">
+        <div class="label">Real P&amp;L</div>
+        <div class="value ${pnlReal >= 0 ? 'green' : 'red'}">${pnlRealStr}</div>
+        <div class="sub">actual trade sizes</div>
+      </div>
+      <div class="stat-card" title="Normalised $100/trade simulation for fair comparison">
+        <div class="label">Sim P&amp;L ($100/trade)</div>
+        <div class="value ${pnlSim >= 0 ? 'green' : 'red'}" style="font-size:16px">${pnlSimStr}</div>
+        <div class="sub">equal-stake normalised</div>
+      </div>
+      <div class="stat-card">
+        <div class="label">Max Drawdown</div>
+        <div class="value red" style="font-size:16px">-$${stats.maxDrawdownReal.toLocaleString('en', { maximumFractionDigits: 0 })}</div>
+        <div class="sub">real USD basis</div>
+      </div>
+      <div class="stat-card">
+        <div class="label">Resolved Trades</div>
+        <div class="value cyan">${stats.resolved.toLocaleString()}</div>
+        <div class="sub">${stats.pending} pending${stats.hitTradeCap ? ' · capped at 2k' : ''}</div>
+      </div>
+      <div class="stat-card">
+        <div class="label">Volume</div>
+        <div class="value">${fmtUsd(stats.totalVol)}</div>
+        <div class="sub">avg ${fmtUsd(stats.avgSize)} / trade</div>
+      </div>
+      ${stats.firstTradeTs ? `
+      <div class="stat-card">
+        <div class="label">Data Window</div>
+        <div class="value" style="font-size:13px">${fmtDate(stats.firstTradeTs)}</div>
+        <div class="sub">to ${fmtDate(stats.lastTradeTs)}${stats.hitTradeCap ? ' ⚠ partial' : ''}</div>
+      </div>` : ''}
+    `;
+  } else {
+    document.getElementById('stat-grid').innerHTML =
+      '<div style="color:var(--muted);font-size:13px">No resolved trades found yet.</div>';
+  }
+
+  // ── Equity curve ───────────────────────────────────────────────────────
+  if (curve && curve.length > 1) {
+    // Default to real-money curve — more meaningful
+    currentCurveMode = 'real';
+    document.getElementById('curve-sim-btn').classList.remove('active');
+    document.getElementById('curve-real-btn').classList.add('active');
+    document.getElementById('curve-desc').textContent =
+      'Actual USD P&L — profit/loss calculated at real trade sizes (reflects the trader\'s true dollar returns)';
+    renderEquityCurve(curveReal && curveReal.length > 1 ? curveReal : curve);
+  } else {
+    document.getElementById('equity-section').style.display = 'none';
+  }
+
+  // ── Top markets ────────────────────────────────────────────────────────
+  if (topMarkets && topMarkets.length > 0) {
+    document.getElementById('top-markets').innerHTML = topMarkets.map(m => `
+      <div class="market-item">
+        <div class="q">${esc(m.question)}</div>
+        <div class="wr" style="color:${m.wr >= 55 ? 'var(--green)' : m.wr >= 45 ? 'var(--amber)' : 'var(--red)'}">${m.wr}%</div>
+        <div style="font-size:11px;color:var(--muted);white-space:nowrap">${m.trades}t</div>
+      </div>
+    `).join('');
+  } else {
+    document.getElementById('markets-section').style.display = 'none';
+  }
+
+  // ── Recent resolved trades ─────────────────────────────────────────────
+  if (recentTrades && recentTrades.length > 0) {
+    document.getElementById('recent-tbody').innerHTML = recentTrades.map(t => `
+      <tr>
+        <td><span class="pill ${t.result === 'correct' ? 'win' : 'loss'}">${t.result === 'correct' ? '✓ WIN' : '✗ LOSS'}</span></td>
+        <td style="max-width:300px;font-size:12px;line-height:1.4">${esc(t.question)}</td>
+        <td><span class="pill ${(t.side||'').toUpperCase() === 'BUY' ? 'buy' : 'sell'}">${t.side}</span></td>
+        <td style="font-family:var(--mono)">${(t.price * 100).toFixed(1)}¢</td>
+        <td style="font-family:var(--mono)">$${t.sizeUsd.toFixed(0)}</td>
+        <td style="color:var(--muted);white-space:nowrap">${fmtDate(t.ts)}</td>
+      </tr>
+    `).join('');
+  } else {
+    document.getElementById('recent-section').style.display = 'none';
+  }
+
+  // ── Open / pending positions ───────────────────────────────────────────
+  if (openTrades && openTrades.length > 0) {
+    document.getElementById('open-section').style.display = '';
+    document.getElementById('open-tbody').innerHTML = openTrades.map(t => `
+      <tr>
+        <td style="max-width:300px;font-size:12px;line-height:1.4">${esc(t.question)}</td>
+        <td style="font-size:12px;color:var(--cyan)">${esc(t.outcome || '—')}</td>
+        <td><span class="pill ${(t.side||'').toUpperCase() === 'BUY' ? 'buy' : 'sell'}">${t.side || '—'}</span></td>
+        <td style="font-family:var(--mono)">${t.price ? (t.price * 100).toFixed(1) + '¢' : '—'}</td>
+        <td style="font-family:var(--mono)">$${t.sizeUsd?.toFixed(0) ?? '—'}</td>
+        <td style="color:var(--muted);white-space:nowrap">${fmtDate(t.ts)}</td>
+      </tr>
+    `).join('');
+  }
+}
+
+// ── Equity curve chart ───────────────────────────────────────────────────
+function renderEquityCurve(curve) {
+  const canvas = document.getElementById('equity-chart');
+  const ctx    = canvas.getContext('2d');
+  const pts    = downsample(curve, 400);
+  const labels = pts.map(p => new Date(p.ts * 1000));
+  const values = pts.map(p => p.cum);
+  const finalVal  = values[values.length - 1] ?? 0;
+  const lineColor = finalVal >= 0 ? '#22c55e' : '#ef4444';
+
+  if (equityChart) {
+    equityChart.data.labels = labels;
+    equityChart.data.datasets[0].data   = values;
+    equityChart.data.datasets[0].borderColor = lineColor;
+    equityChart.update('none');
+    return;
+  }
+
+  equityChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Cumulative P&L ($)',
+        data: values,
+        borderColor: lineColor,
+        borderWidth: 2,
+        pointRadius: 0,
+        tension: 0.3,
+        fill: true,
+        backgroundColor: ctx2 => {
+          const g = ctx2.chart.ctx.createLinearGradient(0, 0, 0, 280);
+          g.addColorStop(0, finalVal >= 0 ? 'rgba(34,197,94,.18)' : 'rgba(239,68,68,.18)');
+          g.addColorStop(1, 'rgba(0,0,0,0)');
+          return g;
+        },
+      }],
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false, animation: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#1f2433', titleColor: '#94a3b8', bodyColor: '#e2e8f0', padding: 10,
+          callbacks: {
+            title: items => new Date(items[0].parsed.x).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }),
+            label: item => `  P&L: ${item.parsed.y >= 0 ? '+' : ''}$${Math.abs(item.parsed.y).toFixed(0)}`,
+          },
+        },
+      },
+      scales: {
+        x: { type: 'time', time: { unit: 'month' }, grid: { color: 'rgba(255,255,255,.04)' }, ticks: { color: '#64748b', maxTicksLimit: 8 } },
+        y: { grid: { color: 'rgba(255,255,255,.04)' }, ticks: { color: '#64748b', callback: v => (v >= 0 ? '+$' : '-$') + Math.abs(v).toLocaleString() } },
+      },
+    },
+  });
+}
+
+// ── Utilities ────────────────────────────────────────────────────────────
+
+function downsample(arr, maxPts) {
+  if (arr.length <= maxPts) return arr;
+  const step = (arr.length - 1) / (maxPts - 1);
+  return Array.from({ length: maxPts }, (_, i) => arr[Math.round(i * step)]);
+}
+
+function fmtDate(ts) {
+  if (!ts) return '—';
+  return new Date(ts * 1000).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: '2-digit' });
+}
+
+function fmtUsd(v) {
+  if (!v) return '$0';
+  if (v >= 1_000_000) return '$' + (v / 1_000_000).toFixed(1) + 'M';
+  if (v >= 1_000)     return '$' + (v / 1_000).toFixed(1) + 'k';
+  return '$' + v.toFixed(0);
+}
+
+function esc(str) {
+  if (!str) return '';
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+</script>
+</body>
+</html>

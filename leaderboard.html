@@ -1,0 +1,1604 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <!-- ── Beta password gate ────────────────────────────────────────────────
+       Runs before any page content renders. Sets a 7-day cookie on success.
+       Change PASS to update the shared password — redeploy to take effect.
+  ──────────────────────────────────────────────────────────────────────── -->
+  <script>
+  (function(){
+    var COOKIE='pmp_beta_auth', PASS='polymarket2026', DAYS=7;
+    function getCookie(n){var m=document.cookie.match('(^|;)\\s*'+n+'\\s*=\\s*([^;]+)');return m?m.pop():'';}
+    if(getCookie(COOKIE)===PASS)return;
+    document.documentElement.style.visibility='hidden';
+    window.addEventListener('DOMContentLoaded',function(){
+      document.documentElement.style.visibility='';
+      var d=document.createElement('div');
+      d.innerHTML='<div style="position:fixed;inset:0;background:#0a0c10;display:flex;align-items:center;justify-content:center;z-index:99999;font-family:system-ui,sans-serif"><div style="background:#111318;border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:40px;width:320px;text-align:center"><div style="font-size:22px;font-weight:700;color:#e2e8f0;margin-bottom:6px">PredictionMarketPlug</div><div style="font-size:13px;color:#64748b;margin-bottom:24px">Beta — enter password to continue</div><input id="_pw_in" type="password" placeholder="Password" style="width:100%;padding:11px 14px;background:#1f2433;border:1px solid rgba(255,255,255,.1);border-radius:8px;color:#e2e8f0;font-size:14px;outline:none;box-sizing:border-box;margin-bottom:10px" /><div id="_pw_err" style="color:#ef4444;font-size:12px;min-height:18px;margin-bottom:10px"></div><button id="_pw_btn" style="width:100%;padding:11px;background:#00d4ff;color:#000;font-weight:700;font-size:14px;border:none;border-radius:8px;cursor:pointer">Enter</button></div></div>';
+      document.body.prepend(d);
+      function attempt(){
+        var v=document.getElementById('_pw_in').value;
+        if(v===PASS){
+          var e=new Date();e.setDate(e.getDate()+DAYS);
+          document.cookie=COOKIE+'='+PASS+';expires='+e.toUTCString()+';path=/;SameSite=Strict';
+          d.remove();
+        } else {
+          document.getElementById('_pw_err').textContent='Incorrect password';
+          document.getElementById('_pw_in').value='';
+          document.getElementById('_pw_in').focus();
+        }
+      }
+      document.getElementById('_pw_btn').onclick=attempt;
+      document.getElementById('_pw_in').onkeydown=function(e){if(e.key==='Enter')attempt();};
+      document.getElementById('_pw_in').focus();
+    });
+  })();
+  </script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Trader Leaderboard — Prediction Market Plug</title>
+  <meta name="description" content="Live Polymarket trader leaderboard. Track win rates, streaks, volume and smart money wallets. Verified on-chain data, updated in real time." />
+  <meta property="og:title" content="Trader Leaderboard — Prediction Market Plug" />
+  <meta property="og:description" content="See who's winning on Polymarket. Win rates, streaks, smart money consensus — all verified against resolved markets." />
+  <meta property="og:image" content="https://predictionmarketplug.com/og-image.png" />
+  <meta property="og:url" content="https://predictionmarketplug.com/leaderboard" />
+  <meta name="twitter:card" content="summary_large_image" />
+
+  <link rel="icon" type="image/png" href="logo.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+
+  <style>
+    /* ── RESET & BASE ──────────────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --cyan:    #00d4ff;
+      --blue:    #3b6ef8;
+      --purple:  #8b5cf6;
+      --pink:    #d946ef;
+      --green:   #22c55e;
+      --red:     #ef4444;
+      --gold:    #ffd700;
+      --dark:    #06080f;
+      --dark2:   #0d1117;
+      --dark3:   #111827;
+      --border:  rgba(0, 212, 255, 0.12);
+      --text:    #e2e8f0;
+      --muted:   #64748b;
+      --font:    'Space Grotesk', sans-serif;
+      --mono:    'JetBrains Mono', monospace;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: var(--font);
+      background: var(--dark);
+      color: var(--text);
+      overflow-x: hidden;
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+
+    /* Subtle grid texture */
+    body::after {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(0,212,255,0.025) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,212,255,0.025) 1px, transparent 1px);
+      background-size: 60px 60px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ── NAV ─────────────────────────────────────────────────────────────── */
+    nav {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 100;
+      padding: 16px 0;
+      background: rgba(6, 8, 15, 0.90);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--border);
+    }
+
+    nav .inner {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .nav-logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      text-decoration: none;
+      color: var(--text);
+    }
+
+    .nav-logo img {
+      width: 32px;
+      height: 32px;
+      object-fit: contain;
+      filter: drop-shadow(0 0 8px rgba(0,212,255,0.6));
+    }
+
+    .nav-logo span { font-weight: 600; font-size: 15px; letter-spacing: -0.01em; }
+
+    .nav-links  { display: flex; align-items: center; gap: 28px; list-style: none; }
+
+    .nav-links a {
+      color: var(--muted);
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 500;
+      transition: color 0.2s;
+    }
+
+    .nav-links a:hover,
+    .nav-links a.active { color: var(--cyan); }
+
+    /* Hamburger — hidden on desktop, shown on mobile */
+    .hamburger {
+      display: none;
+      flex-direction: column;
+      justify-content: center;
+      gap: 5px;
+      width: 36px;
+      height: 36px;
+      padding: 4px;
+      background: none;
+      border: none;
+      cursor: pointer;
+    }
+    .hamburger span {
+      display: block;
+      height: 2px;
+      background: var(--text);
+      border-radius: 2px;
+      transition: all 0.2s;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 9px 20px;
+      border-radius: 8px;
+      font-family: var(--font);
+      font-weight: 600;
+      font-size: 14px;
+      text-decoration: none;
+      cursor: pointer;
+      border: none;
+      transition: all 0.2s ease;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--cyan), var(--blue));
+      color: #000;
+      box-shadow: 0 0 20px rgba(0,212,255,0.2);
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 0 36px rgba(0,212,255,0.4);
+    }
+
+    /* ── PAGE LAYOUT ─────────────────────────────────────────────────────── */
+    .page {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 100px 24px 80px;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* ── PAGE HEADER ─────────────────────────────────────────────────────── */
+    .page-header {
+      margin-bottom: 40px;
+    }
+
+    .section-label {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--cyan);
+      margin-bottom: 12px;
+    }
+
+    .page-header h1 {
+      font-size: clamp(2rem, 4vw, 3rem);
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      line-height: 1.1;
+      margin-bottom: 12px;
+    }
+
+    .gradient-text {
+      background: linear-gradient(135deg, var(--cyan) 0%, var(--blue) 50%, var(--purple) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .page-header p {
+      color: var(--muted);
+      font-size: 1rem;
+      max-width: 520px;
+      line-height: 1.7;
+    }
+
+    /* ── LIVE BADGE ──────────────────────────────────────────────────────── */
+    .live-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 12px;
+      background: rgba(34,197,94,0.08);
+      border: 1px solid rgba(34,197,94,0.2);
+      border-radius: 100px;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--green);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      margin-bottom: 16px;
+    }
+
+    .live-dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--green);
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50%       { opacity: 0.5; transform: scale(0.8); }
+    }
+
+    /* ── STAT STRIP ──────────────────────────────────────────────────────── */
+    .stat-strip {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      margin-bottom: 36px;
+    }
+
+    .stat-card {
+      background: var(--dark2);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 20px 22px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .stat-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, var(--cyan), var(--blue));
+      opacity: 0.4;
+    }
+
+    .stat-card .val {
+      font-size: 1.9rem;
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      background: linear-gradient(135deg, var(--cyan), var(--blue));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      font-family: var(--mono);
+    }
+
+    .stat-card .lbl {
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 4px;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    /* ── TABS + FILTERS ──────────────────────────────────────────────────── */
+    .controls {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    .tabs {
+      display: flex;
+      gap: 4px;
+      background: var(--dark2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 4px;
+    }
+
+    .tab {
+      padding: 7px 18px;
+      border-radius: 7px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      color: var(--muted);
+      border: none;
+      background: transparent;
+      font-family: var(--font);
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+
+    .tab.active {
+      background: linear-gradient(135deg, var(--cyan), var(--blue));
+      color: #000;
+    }
+
+    .tab:hover:not(.active) { color: var(--text); }
+
+    .search-box {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--dark2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 8px 14px;
+    }
+
+    .search-box input {
+      background: transparent;
+      border: none;
+      outline: none;
+      color: var(--text);
+      font-family: var(--font);
+      font-size: 13px;
+      width: 200px;
+    }
+
+    .search-box input::placeholder { color: var(--muted); }
+
+    .search-icon { color: var(--muted); font-size: 14px; }
+
+    /* ── TABLE ───────────────────────────────────────────────────────────── */
+    .table-wrap {
+      background: var(--dark2);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      overflow: hidden;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    thead th {
+      padding: 14px 16px;
+      text-align: left;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+      background: rgba(0,212,255,0.03);
+      border-bottom: 1px solid var(--border);
+      white-space: nowrap;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    thead th:hover { color: var(--cyan); }
+
+    thead th .sort-arrow { margin-left: 4px; opacity: 0.4; font-size: 10px; }
+    thead th.sorted .sort-arrow { opacity: 1; color: var(--cyan); }
+
+    tbody tr {
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+      transition: background 0.15s;
+    }
+
+    tbody tr:last-child { border-bottom: none; }
+    tbody tr:hover { background: rgba(0,212,255,0.03); }
+
+    td {
+      padding: 14px 16px;
+      font-size: 14px;
+      vertical-align: middle;
+    }
+
+    /* Rank column */
+    .rank {
+      font-family: var(--mono);
+      font-weight: 600;
+      color: var(--muted);
+      font-size: 13px;
+      width: 52px;
+    }
+
+    .rank-1 { color: var(--gold); }
+    .rank-2 { color: #c0c0c0; }
+    .rank-3 { color: #cd7f32; }
+
+    /* Wallet column */
+    .wallet-cell { display: flex; align-items: center; gap: 10px; }
+
+    .wallet-avatar {
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--purple), var(--blue));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      font-weight: 700;
+      flex-shrink: 0;
+      color: #fff;
+    }
+
+    .wallet-name {
+      font-weight: 600;
+      font-size: 14px;
+      color: var(--text);
+    }
+
+    .wallet-addr {
+      font-size: 11px;
+      color: var(--muted);
+      font-family: var(--mono);
+    }
+
+    .wallet-link {
+      text-decoration: none;
+      color: inherit;
+      transition: color 0.2s;
+    }
+
+    .wallet-link:hover .wallet-name { color: var(--cyan); }
+
+    /* Win-rate bar */
+    .winrate-cell { min-width: 140px; }
+
+    .wr-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .wr-pct {
+      font-family: var(--mono);
+      font-size: 13px;
+      font-weight: 600;
+      min-width: 40px;
+    }
+
+    .wr-pct.high  { color: var(--green); }
+    .wr-pct.mid   { color: #f59e0b; }
+    .wr-pct.low   { color: var(--red); }
+
+    .wr-bar-wrap {
+      flex: 1;
+      height: 5px;
+      background: rgba(255,255,255,0.06);
+      border-radius: 100px;
+      overflow: hidden;
+      min-width: 60px;
+    }
+
+    .wr-bar {
+      height: 100%;
+      border-radius: 100px;
+      transition: width 0.8s ease;
+    }
+
+    .wr-bar.high  { background: linear-gradient(90deg, var(--green), #16a34a); }
+    .wr-bar.mid   { background: linear-gradient(90deg, #f59e0b, #d97706); }
+    .wr-bar.low   { background: linear-gradient(90deg, var(--red), #b91c1c); }
+
+    /* Streak badge */
+    .streak-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 10px;
+      border-radius: 100px;
+      font-size: 12px;
+      font-weight: 600;
+      font-family: var(--mono);
+    }
+
+    .streak-badge.hot  { background: rgba(34,197,94,0.1);  color: var(--green);  border: 1px solid rgba(34,197,94,0.2); }
+    .streak-badge.cold { background: rgba(239,68,68,0.1);  color: var(--red);    border: 1px solid rgba(239,68,68,0.2); }
+    .streak-badge.zero { background: rgba(100,116,139,0.1);color: var(--muted);  border: 1px solid rgba(100,116,139,0.15); }
+
+    /* Smart money badge */
+    .smart-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      background: rgba(0,212,255,0.1);
+      color: var(--cyan);
+      border: 1px solid rgba(0,212,255,0.2);
+      white-space: nowrap;
+    }
+
+    /* Volume */
+    .vol {
+      font-family: var(--mono);
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .trades-num {
+      font-family: var(--mono);
+      font-size: 13px;
+    }
+
+    /* ── WHALE FEED ──────────────────────────────────────────────────────── */
+    .two-col {
+      display: grid;
+      grid-template-columns: 1fr 380px;
+      gap: 24px;
+      margin-top: 40px;
+    }
+
+    .panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+      background: rgba(0,212,255,0.03);
+    }
+
+    .panel-title {
+      font-size: 13px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text);
+    }
+
+    .panel-sub {
+      font-size: 11px;
+      color: var(--muted);
+      margin-top: 2px;
+    }
+
+    .feed-panel {
+      background: var(--dark2);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      overflow: hidden;
+    }
+
+    .feed-body {
+      max-height: 520px;
+      overflow-y: auto;
+    }
+
+    .feed-body::-webkit-scrollbar { width: 4px; }
+    .feed-body::-webkit-scrollbar-track { background: transparent; }
+    .feed-body::-webkit-scrollbar-thumb { background: rgba(0,212,255,0.2); border-radius: 4px; }
+
+    .whale-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 12px 16px;
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+      transition: background 0.15s;
+    }
+
+    .whale-row:last-child { border-bottom: none; }
+    .whale-row:hover { background: rgba(255,255,255,0.02); }
+
+    .whale-side {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      margin-top: 5px;
+      flex-shrink: 0;
+    }
+
+    .whale-side.buy  { background: var(--green); box-shadow: 0 0 6px rgba(34,197,94,0.5); }
+    .whale-side.sell { background: var(--red);   box-shadow: 0 0 6px rgba(239,68,68,0.5); }
+
+    .whale-body { flex: 1; min-width: 0; }
+
+    .whale-top {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin-bottom: 2px;
+    }
+
+    .whale-size {
+      font-family: var(--mono);
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .whale-mega-tag {
+      font-size: 9px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      padding: 1px 6px;
+      border-radius: 3px;
+      background: rgba(255,215,0,0.12);
+      color: var(--gold);
+      border: 1px solid rgba(255,215,0,0.2);
+    }
+
+    .whale-q {
+      font-size: 12px;
+      color: var(--muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .whale-time {
+      font-size: 10px;
+      color: #334155;
+      font-family: var(--mono);
+      margin-top: 2px;
+    }
+
+    /* ── MARKETS PANEL ───────────────────────────────────────────────────── */
+    .market-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 16px;
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+      transition: background 0.15s;
+    }
+
+    .market-row:hover { background: rgba(255,255,255,0.02); }
+
+    .market-prob {
+      font-size: 1.1rem;
+      font-weight: 700;
+      font-family: var(--mono);
+      min-width: 46px;
+      text-align: right;
+    }
+
+    .market-prob.high { color: var(--green); }
+    .market-prob.mid  { color: #f59e0b; }
+    .market-prob.low  { color: var(--red); }
+
+    .market-q {
+      flex: 1;
+      font-size: 13px;
+      color: var(--text);
+      line-height: 1.4;
+    }
+
+    .market-vol {
+      font-size: 11px;
+      color: var(--muted);
+      font-family: var(--mono);
+      white-space: nowrap;
+    }
+
+    .cat-pill {
+      font-size: 10px;
+      font-weight: 600;
+      padding: 2px 7px;
+      border-radius: 4px;
+      background: rgba(139,92,246,0.1);
+      color: var(--purple);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      white-space: nowrap;
+    }
+
+    /* ── LOADING / EMPTY STATES ──────────────────────────────────────────── */
+    .loading-row td {
+      text-align: center;
+      padding: 60px 20px;
+      color: var(--muted);
+    }
+
+    .spinner {
+      display: inline-block;
+      width: 24px;
+      height: 24px;
+      border: 2px solid rgba(0,212,255,0.2);
+      border-top-color: var(--cyan);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      margin-bottom: 12px;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .empty-feed {
+      padding: 40px 16px;
+      text-align: center;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    /* ── ACCURACY STRIP ──────────────────────────────────────────────────── */
+    .accuracy-strip {
+      margin-top: 40px;
+      background: linear-gradient(135deg, rgba(0,212,255,0.04), rgba(139,92,246,0.04));
+      border: 1px solid rgba(0,212,255,0.12);
+      border-radius: 16px;
+      padding: 28px 32px;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 24px;
+      text-align: center;
+    }
+
+    .acc-item .acc-val {
+      font-size: 1.7rem;
+      font-weight: 700;
+      font-family: var(--mono);
+      letter-spacing: -0.02em;
+    }
+
+    .acc-item .acc-val.green  { color: var(--green); }
+    .acc-item .acc-val.cyan   { color: var(--cyan); }
+    .acc-item .acc-val.gold   { color: var(--gold); }
+    .acc-item .acc-val.purple { color: var(--purple); }
+
+    .acc-item .acc-lbl {
+      font-size: 11px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-top: 4px;
+    }
+
+    /* ── UPGRADE CTA ─────────────────────────────────────────────────────── */
+    .upgrade-cta {
+      margin-top: 48px;
+      text-align: center;
+      padding: 48px 32px;
+      background: linear-gradient(135deg, rgba(139,92,246,0.06), rgba(0,212,255,0.04));
+      border: 1px solid rgba(139,92,246,0.2);
+      border-radius: 20px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .upgrade-cta::before {
+      content: '';
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      width: 600px; height: 300px;
+      background: radial-gradient(ellipse, rgba(59,110,248,0.08) 0%, transparent 70%);
+      pointer-events: none;
+    }
+
+    .upgrade-cta h3 {
+      font-size: 1.6rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      margin-bottom: 10px;
+    }
+
+    .upgrade-cta p {
+      color: var(--muted);
+      max-width: 480px;
+      margin: 0 auto 28px;
+      font-size: 15px;
+      line-height: 1.7;
+    }
+
+    .cta-btns {
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    .btn-outline {
+      background: transparent;
+      color: var(--cyan);
+      border: 1px solid rgba(0,212,255,0.35);
+    }
+
+    .btn-outline:hover {
+      background: rgba(0,212,255,0.07);
+      transform: translateY(-1px);
+    }
+
+    /* ── FOOTER ──────────────────────────────────────────────────────────── */
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 32px 0;
+      margin-top: 48px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .footer-inner {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .footer-logo {
+      display: flex; align-items: center; gap: 8px;
+      text-decoration: none; color: var(--text);
+    }
+
+    .footer-logo img { width: 24px; filter: drop-shadow(0 0 5px rgba(0,212,255,0.5)); }
+    .footer-logo span { font-size: 13px; font-weight: 600; }
+
+    footer p  { font-size: 12px; color: var(--muted); }
+    footer a  { color: var(--muted); text-decoration: none; font-size: 12px; transition: color 0.2s; }
+    footer a:hover { color: var(--cyan); }
+
+    .footer-links { display: flex; gap: 20px; }
+
+    /* ── RESPONSIVE ──────────────────────────────────────────────────────── */
+    @media (max-width: 1024px) {
+      .two-col { grid-template-columns: 1fr; }
+      .stat-strip { grid-template-columns: repeat(2, 1fr); }
+      .accuracy-strip { grid-template-columns: repeat(2, 1fr); }
+    }
+
+    @media (max-width: 768px) {
+      .stat-strip { grid-template-columns: 1fr 1fr; }
+      .nav-links  { display: none; }
+      .hamburger  { display: flex; }
+      .nav-links.open {
+        display: flex;
+        flex-direction: column;
+        position: fixed;
+        top: 56px;
+        left: 0; right: 0;
+        background: rgba(6,8,15,0.98);
+        border-bottom: 1px solid var(--border);
+        padding: 16px 20px;
+        gap: 16px;
+        z-index: 200;
+      }
+      table { font-size: 13px; }
+      td, th { padding: 10px 10px; }
+      .winrate-cell { min-width: 100px; }
+      .accuracy-strip { grid-template-columns: 1fr 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- NAV -->
+  <nav>
+    <div class="inner">
+      <a class="nav-logo" href="/">
+        <img src="logo.png" alt="Prediction Market Plug" />
+        <span>Prediction Market Plug</span>
+      </a>
+      <ul class="nav-links" id="nav-links">
+        <li><a href="/#signals">Signals</a></li>
+        <li><a href="/leaderboard.html" class="active">Leaderboard</a></li>
+        <li><a href="/graph.html">Graph</a></li>
+        <li><a href="/backtest.html">Backtest</a></li>
+        <li><a href="/wallet.html">Wallet</a></li>
+        <li><a href="/#pricing">Pricing</a></li>
+        <li><a href="/#community">Community</a></li>
+        <li><a href="/#faq">FAQ</a></li>
+      </ul>
+      <a class="btn btn-primary" href="https://discord.gg/XsFdkjeg" target="_blank" rel="noopener">
+        Join Free →
+      </a>
+      <!-- Hamburger toggle for mobile -->
+      <button class="hamburger" id="hamburger" aria-label="Toggle navigation" aria-expanded="false">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+  </nav>
+
+  <div class="page">
+
+    <!-- PAGE HEADER -->
+    <div class="page-header">
+      <div class="live-badge">
+        <span class="live-dot"></span>
+        Live data — updated every 60s
+      </div>
+      <div class="section-label">Trader Intelligence</div>
+      <h1>Who's Actually <span class="gradient-text">Winning</span> on Polymarket.</h1>
+      <p>
+        Win rates computed from resolved markets only. No self-reported figures.
+        Every trade verified on-chain — the only leaderboard you can actually trust.
+      </p>
+    </div>
+
+    <!-- STAT STRIP -->
+    <div class="stat-strip">
+      <div class="stat-card">
+        <div class="val" id="stat-wallets">—</div>
+        <div class="lbl">Tracked wallets</div>
+      </div>
+      <div class="stat-card">
+        <div class="val" id="stat-whale-alerts">—</div>
+        <div class="lbl">Whale alerts total</div>
+      </div>
+      <div class="stat-card">
+        <div class="val" id="stat-active-markets">—</div>
+        <div class="lbl">Active markets</div>
+      </div>
+      <div class="stat-card">
+        <div class="val" id="stat-whale-24h">—</div>
+        <div class="lbl">Whale alerts (24h)</div>
+      </div>
+    </div>
+
+    <!-- CONTROLS -->
+    <div class="controls">
+      <div class="tabs">
+        <button class="tab active" data-tab="leaderboard">🏆 Leaderboard</button>
+        <button class="tab" data-tab="whales">🐋 Live Whale Feed</button>
+        <button class="tab" data-tab="markets">📊 Hot Markets</button>
+      </div>
+      <div class="search-box" id="search-wrap">
+        <span class="search-icon">🔍</span>
+        <input type="text" id="search-input" placeholder="Search wallets…" />
+      </div>
+    </div>
+
+    <!-- LEADERBOARD TABLE -->
+    <div id="tab-leaderboard">
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th class="rank-col">#</th>
+              <th>Trader</th>
+              <th class="winrate-cell sorted" data-col="winRate">Win Rate <span class="sort-arrow">▼</span></th>
+              <th data-col="totalTrades">Trades <span class="sort-arrow">↕</span></th>
+              <th data-col="currentStreak">Streak <span class="sort-arrow">↕</span></th>
+              <th data-col="totalVolumeUsd">Volume <span class="sort-arrow">↕</span></th>
+              <th>Profile</th>
+            </tr>
+          </thead>
+          <tbody id="leaderboard-body">
+            <tr class="loading-row">
+              <td colspan="7">
+                <div><div class="spinner"></div></div>
+                <div>Loading leaderboard…</div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Signal accuracy proof strip -->
+      <div class="accuracy-strip">
+        <div class="acc-item">
+          <div class="acc-val green" id="acc-signals">2.5M+</div>
+          <div class="acc-lbl">Scored signals</div>
+        </div>
+        <div class="acc-item">
+          <div class="acc-val cyan" id="acc-wallets-lb">—</div>
+          <div class="acc-lbl">Wallets on leaderboard</div>
+        </div>
+        <div class="acc-item">
+          <div class="acc-val gold">932K+</div>
+          <div class="acc-lbl">Alert history rows</div>
+        </div>
+        <div class="acc-item">
+          <div class="acc-val purple">10s</div>
+          <div class="acc-lbl">Polling interval</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- WHALE FEED TAB -->
+    <div id="tab-whales" style="display:none">
+      <div class="two-col">
+        <div class="feed-panel">
+          <div class="panel-header">
+            <div>
+              <div class="panel-title">🐋 Live Whale Trades</div>
+              <div class="panel-sub">Trades ≥ $5K · updated every 60 seconds</div>
+            </div>
+            <div class="live-badge" style="margin-bottom:0">
+              <span class="live-dot"></span>Live
+            </div>
+          </div>
+          <div class="feed-body" id="whale-feed-body">
+            <div class="empty-feed">
+              <div class="spinner" style="margin: 0 auto 10px"></div>
+              <div>Loading whale trades…</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="feed-panel">
+          <div class="panel-header">
+            <div>
+              <div class="panel-title">📊 Top Markets by Volume</div>
+              <div class="panel-sub">35K+ markets tracked · 30s snapshots</div>
+            </div>
+          </div>
+          <div class="feed-body" id="markets-side-body">
+            <div class="empty-feed">Loading…</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- MARKETS TAB -->
+    <div id="tab-markets" style="display:none">
+      <div class="feed-panel">
+        <div class="panel-header">
+          <div>
+            <div class="panel-title">📊 Top Markets by 24h Volume</div>
+            <div class="panel-sub">Live order book data · YES prices shown</div>
+          </div>
+        </div>
+        <div id="markets-full-body">
+          <div class="empty-feed">
+            <div class="spinner" style="margin: 0 auto 10px"></div>
+            <div>Loading markets…</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- UPGRADE CTA -->
+    <div class="upgrade-cta">
+      <h3>Get <span class="gradient-text">real-time alerts</span> when these traders move.</h3>
+      <p>
+        Pro members get instant Discord notifications every time a high win-rate wallet
+        enters a position — including leaderboard rank and signal confidence score.
+      </p>
+      <div class="cta-btns">
+        <a class="btn btn-primary" href="https://whop.com/prediction-market-plug/" target="_blank" rel="noopener">
+          Get Pro — $15/mo
+        </a>
+        <a class="btn btn-outline" href="https://discord.gg/XsFdkjeg" target="_blank" rel="noopener">
+          Join Free on Discord
+        </a>
+      </div>
+    </div>
+
+  </div><!-- /.page -->
+
+  <!-- FOOTER -->
+  <footer>
+    <div class="footer-inner">
+      <a class="footer-logo" href="/">
+        <img src="logo.png" alt="PMP" />
+        <span>Prediction Market Plug</span>
+      </a>
+      <p>© 2026 Prediction Market Plug. Not financial advice.</p>
+      <div class="footer-links">
+        <a href="https://discord.gg/XsFdkjeg" target="_blank" rel="noopener">Discord</a>
+        <a href="https://whop.com/prediction-market-plug/" target="_blank" rel="noopener">Whop</a>
+        <a href="/">Home</a>
+      </div>
+    </div>
+  </footer>
+
+<script>
+/**
+ * leaderboard.js — Fetches live data from the PMP API server and renders
+ * the leaderboard table, whale feed, and market panels.
+ *
+ * API base is configurable via window.PMP_API_BASE so it can point to
+ * localhost in dev or the production URL when deployed behind Cloudflare.
+ *
+ * All endpoints currently require a Bearer token (Pro tier). Until a
+ * public read-only endpoint is wired up, we use a read-only demo key
+ * stored in a meta tag or fallback to graceful placeholder UI.
+ */
+
+// ── Config ────────────────────────────────────────────────────────────────
+// /public/* endpoints require no auth key — they are rate-limited by IP
+// (60 req/min) and return a curated subset of data safe for public display.
+//
+// In dev:  the Mac Mini API is accessible via Tailscale at 100.125.187.81:4001
+// In prod: point to your Cloudflare-proxied domain, e.g. https://api.predictionmarketplug.com
+//
+// The page auto-detects local dev (hostname is localhost) and hits the Mac
+// Mini directly over Tailscale; on the public domain it uses the prod URL.
+const IS_LOCAL = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+const API_BASE = IS_LOCAL
+  ? 'http://100.125.187.81:4001'           // Mac Mini direct via Tailscale (dev)
+  : 'https://api.predictionmarketplug.com'; // Cloudflare-proxied prod URL
+
+// ── State ─────────────────────────────────────────────────────────────────
+let allWallets   = [];
+let sortCol      = 'winRate';
+let sortDir      = -1;   // -1 = descending, 1 = ascending
+let searchQuery  = '';
+
+// ── Helpers ───────────────────────────────────────────────────────────────
+
+/**
+ * Escape HTML special characters to prevent XSS when inserting API-sourced
+ * strings into innerHTML. Always apply to any untrusted string.
+ */
+function escapeHtml(str) {
+  if (str == null) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+/** Format large numbers with K/M suffixes. */
+function fmtNum(n) {
+  if (!n && n !== 0) return '—';
+  if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + 'M';
+  if (n >= 1_000)     return (n / 1_000).toFixed(1) + 'K';
+  return String(n);
+}
+
+/** Format USD volumes. */
+function fmtUsd(n) {
+  if (!n && n !== 0) return '—';
+  if (n >= 1_000_000) return '$' + (n / 1_000_000).toFixed(2) + 'M';
+  if (n >= 1_000)     return '$' + (n / 1_000).toFixed(1) + 'K';
+  return '$' + n.toFixed(0);
+}
+
+/** Relative time label. */
+function relTime(ms) {
+  const s = Math.floor((Date.now() - ms) / 1000);
+  if (s < 60)   return 'just now';
+  if (s < 3600) return Math.floor(s / 60) + 'm ago';
+  if (s < 86400) return Math.floor(s / 3600) + 'h ago';
+  return Math.floor(s / 86400) + 'd ago';
+}
+
+/** Win-rate CSS class for colouring. */
+function wrClass(pct) {
+  if (pct >= 60) return 'high';
+  if (pct >= 45) return 'mid';
+  return 'low';
+}
+
+/** Two-letter avatar from a display name or wallet address. */
+function avatarText(name, addr) {
+  if (name) return name.slice(0, 2).toUpperCase();
+  if (addr)  return addr.slice(2, 4).toUpperCase();
+  return '??';
+}
+
+/** Deterministic gradient for wallet avatars based on address chars. */
+function avatarGradient(addr) {
+  const hue1 = (parseInt(addr?.slice(2, 4) || '80', 16) * 1.4) % 360;
+  const hue2 = (hue1 + 60) % 360;
+  return `linear-gradient(135deg, hsl(${hue1},70%,50%), hsl(${hue2},70%,45%))`;
+}
+
+/** Fetch from a /public/* endpoint — no auth required. */
+async function apiFetch(path) {
+  const res = await fetch(API_BASE + path);
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json();
+}
+
+// ── Stats strip ───────────────────────────────────────────────────────────
+
+async function loadStats() {
+  try {
+    const stats = await apiFetch('/public/stats');
+    document.getElementById('stat-active-markets').textContent = fmtNum(stats.activeMarkets);
+    document.getElementById('stat-whale-24h').textContent      = fmtNum(stats.whaleAlerts24h);
+    document.getElementById('stat-whale-alerts').textContent   = fmtNum(stats.totalWhaleAlerts);
+    document.getElementById('stat-wallets').textContent        = fmtNum(stats.trackedWallets);
+    document.getElementById('acc-signals').textContent         = fmtNum(stats.signalCount);
+  } catch (_) {
+    /* silently degrade — placeholder text stays */
+  }
+}
+
+// ── Leaderboard ───────────────────────────────────────────────────────────
+
+async function loadLeaderboard() {
+  try {
+    const wallets = await apiFetch('/public/leaderboard?n=100');
+    allWallets = wallets;
+    document.getElementById('stat-wallets').textContent   = fmtNum(wallets.length);
+    document.getElementById('acc-wallets-lb').textContent = fmtNum(wallets.length);
+    renderLeaderboard();
+  } catch (err) {
+    console.warn('[Leaderboard] API unavailable — showing demo data', err);
+    renderDemoLeaderboard();
+  }
+}
+
+function renderLeaderboard() {
+  const q = searchQuery.toLowerCase();
+  let rows = allWallets.filter(w =>
+    !q ||
+    (w.displayName || '').toLowerCase().includes(q) ||
+    (w.shortAddr || '').toLowerCase().includes(q)
+  );
+
+  // Sort — winRate from server is already a float (e.g. 74.3)
+  rows = rows.slice().sort((a, b) => {
+    const va = a[sortCol] ?? 0;
+    const vb = b[sortCol] ?? 0;
+    return (va < vb ? -1 : va > vb ? 1 : 0) * sortDir;
+  });
+
+  const tbody = document.getElementById('leaderboard-body');
+  if (!rows.length) {
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:40px;color:var(--muted)">No results found.</td></tr>`;
+    return;
+  }
+
+  // Build rank map from win-rate order (stable even when sorting by other cols)
+  const rankMap = {};
+  allWallets.slice()
+    .sort((a, b) => (b.winRate ?? 0) - (a.winRate ?? 0))
+    .forEach((w, i) => { rankMap[w.shortAddr] = i + 1; });
+
+  tbody.innerHTML = rows.map(w => {
+    const rank    = rankMap[w.shortAddr] || w.rank || '—';
+    const pct     = w.winRate != null ? parseFloat(w.winRate) : null;
+    const pctDisp = pct != null ? pct.toFixed(1) + '%' : '—';
+    const cls     = pct != null ? wrClass(pct) : '';
+    const barW    = pct != null ? Math.min(pct, 100) : 0;
+    const name    = w.displayName || null;
+    const addr    = w.shortAddr || '';
+    const streak  = w.currentStreak || 0;
+    const streakCls   = streak > 0 ? 'hot' : streak < 0 ? 'cold' : 'zero';
+    const streakEmoji = streak > 3 ? '🔥' : streak < -3 ? '❄️' : '';
+    const streakLabel = streak > 0 ? `+${streak} W` : streak < 0 ? `${streak} L` : '—';
+    // Smart money: ≥65% win rate with at least 20 resolved trades
+    const isSmartMoney = pct != null && pct >= 65 && (w.totalTrades || 0) >= 20;
+    const rankClass = rank === 1 ? 'rank-1' : rank === 2 ? 'rank-2' : rank === 3 ? 'rank-3' : '';
+
+    return `
+      <tr>
+        <td class="rank ${rankClass}">${rank <= 3 ? ['🥇','🥈','🥉'][rank-1] : rank}</td>
+        <td>
+          <div class="wallet-cell">
+            <div class="wallet-avatar" style="background:${escapeHtml(avatarGradient(addr))}">
+              ${escapeHtml(avatarText(name, addr))}
+            </div>
+            <div>
+              <div class="wallet-name">${escapeHtml(name || addr)}</div>
+              ${name ? `<div class="wallet-addr">${escapeHtml(addr)}</div>` : ''}
+              ${isSmartMoney ? `<span class="smart-badge">🧠 Smart Money</span>` : ''}
+            </div>
+          </div>
+        </td>
+        <td class="winrate-cell">
+          <div class="wr-row">
+            <span class="wr-pct ${cls}">${escapeHtml(pctDisp)}</span>
+            <div class="wr-bar-wrap">
+              <div class="wr-bar ${cls}" style="width:${barW}%"></div>
+            </div>
+          </div>
+        </td>
+        <td class="trades-num">${fmtNum(w.totalTrades)}</td>
+        <td>
+          <span class="streak-badge ${streakCls}">${streakEmoji} ${escapeHtml(streakLabel)}</span>
+        </td>
+        <td class="vol">${fmtUsd(w.totalVolumeUsd)}</td>
+        <td>
+          <a href="${escapeHtml(w.polymarketUrl || '#')}" target="_blank" rel="noopener"
+             style="font-size:11px;color:var(--cyan);text-decoration:none;font-weight:600;">
+            View →
+          </a>
+        </td>
+      </tr>`;
+  }).join('');
+}
+
+/** Renders a static demo table when the API is unreachable. */
+function renderDemoLeaderboard() {
+  const DEMO = [
+    { rank:1, name:'0xAlpha',  addr:'0xAb12…E7F3', wr:78.4, trades:214, streak:7,  vol:'$892K', smart:true  },
+    { rank:2, name:'CryptoOracle', addr:'0x22C8…A140', wr:74.1, trades:189, streak:5,  vol:'$1.2M', smart:true  },
+    { rank:3, name:'PolyShark', addr:'0x5E9D…B3C2', wr:71.8, trades:302, streak:3,  vol:'$2.1M', smart:true  },
+    { rank:4, name:null,       addr:'0x7714…9AC6', wr:68.3, trades:97,  streak:-1, vol:'$340K', smart:false },
+    { rank:5, name:'0xBeta',   addr:'0x1103…6FF2', wr:65.9, trades:143, streak:4,  vol:'$760K', smart:false },
+    { rank:6, name:null,       addr:'0x99DD…0E81', wr:63.2, trades:76,  streak:2,  vol:'$210K', smart:false },
+    { rank:7, name:'TradeKing', addr:'0x4AC1…2B50', wr:61.7, trades:412, streak:0,  vol:'$3.4M', smart:false },
+    { rank:8, name:null,       addr:'0x8823…C5D9', wr:59.4, trades:55,  streak:-2, vol:'$95K',  smart:false },
+  ];
+
+  const tbody = document.getElementById('leaderboard-body');
+  tbody.innerHTML = DEMO.map(w => {
+    const rankClass = w.rank <= 3 ? `rank-${w.rank}` : '';
+    const rankEmoji = w.rank <= 3 ? ['🥇','🥈','🥉'][w.rank-1] : w.rank;
+    const cls = wrClass(w.wr);
+    const streakCls = w.streak > 0 ? 'hot' : w.streak < 0 ? 'cold' : 'zero';
+    const streakLbl = w.streak > 0 ? `+${w.streak} W` : w.streak < 0 ? `${w.streak} L` : '—';
+    const displayName = w.name || w.addr;
+
+    return `
+      <tr>
+        <td class="rank ${rankClass}">${rankEmoji}</td>
+        <td>
+          <div class="wallet-cell">
+            <div class="wallet-avatar" style="background:${avatarGradient(w.addr)}">
+              ${avatarText(w.name, w.addr)}
+            </div>
+            <div>
+              <div class="wallet-name">${displayName}</div>
+              ${w.name ? `<div class="wallet-addr">${w.addr}</div>` : ''}
+              ${w.smart ? `<span class="smart-badge">🧠 Smart Money</span>` : ''}
+            </div>
+          </div>
+        </td>
+        <td class="winrate-cell">
+          <div class="wr-row">
+            <span class="wr-pct ${cls}">${w.wr.toFixed(1)}%</span>
+            <div class="wr-bar-wrap">
+              <div class="wr-bar ${cls}" style="width:${w.wr}%"></div>
+            </div>
+          </div>
+        </td>
+        <td class="trades-num">${fmtNum(w.trades)}</td>
+        <td><span class="streak-badge ${streakCls}">${streakLbl}</span></td>
+        <td class="vol">${w.vol}</td>
+        <td><span style="font-size:11px;color:var(--muted);">Live soon</span></td>
+      </tr>`;
+  }).join('');
+
+  // Indicate demo mode in stat strip
+  document.getElementById('stat-wallets').textContent = '—';
+}
+
+// ── Whale Feed ────────────────────────────────────────────────────────────
+
+async function loadWhaleFeed() {
+  try {
+    const trades = await apiFetch('/public/whales?limit=40');
+    renderWhaleFeed(trades, 'whale-feed-body');
+    renderWhaleFeed(trades.slice(0, 12), 'markets-side-body');
+  } catch (_) {
+    document.getElementById('whale-feed-body').innerHTML =
+      `<div class="empty-feed">Unable to reach API — check connection.</div>`;
+  }
+}
+
+function renderWhaleFeed(trades, elId) {
+  const el = document.getElementById(elId);
+  if (!trades.length) {
+    el.innerHTML = `<div class="empty-feed">No whale trades found.</div>`;
+    return;
+  }
+
+  el.innerHTML = trades.map(t => {
+    const sideClass  = t.side === 'BUY' ? 'buy' : 'sell';
+    const size       = fmtUsd(t.sizeUsd);
+    const q          = escapeHtml(t.question || '—');
+    const ts         = escapeHtml(relTime(t.timestamp));
+    const megaTag    = t.isMegaWhale ? '<span class="whale-mega-tag">MEGA</span>' : '';
+
+    return `
+      <div class="whale-row">
+        <div class="whale-side ${sideClass}"></div>
+        <div class="whale-body">
+          <div class="whale-top">
+            <span class="whale-size">${escapeHtml(t.side)} ${escapeHtml(size)}</span>
+            ${megaTag}
+          </div>
+          <div class="whale-q">${q}</div>
+          <div class="whale-time">${ts}</div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+// ── Markets ───────────────────────────────────────────────────────────────
+
+async function loadMarkets() {
+  try {
+    const markets = await apiFetch('/public/markets?limit=50');
+    renderMarketsFull(markets);
+    renderMarketsPanel(markets.slice(0, 15), 'markets-side-body');
+  } catch (_) {
+    document.getElementById('markets-full-body').innerHTML =
+      `<div class="empty-feed">Unable to reach API — check connection.</div>`;
+  }
+}
+
+function renderMarketsPanel(markets, elId) {
+  const el = document.getElementById(elId);
+  if (!el) return;
+  el.innerHTML = markets.map(m => {
+    const prices = m.outcomePrices || [];
+    const yes    = prices[0] != null ? (prices[0] * 100).toFixed(0) : null;
+    const cls    = yes != null ? (yes >= 70 ? 'high' : yes <= 30 ? 'low' : 'mid') : '';
+    const vol    = fmtUsd(m.volume24h);
+    const cat    = escapeHtml(m.category || '');
+    // Only allow safe URLs — must start with https://polymarket.com
+    const safeUrl = (m.url && m.url.startsWith('https://polymarket.com')) ? m.url : '#';
+
+    return `
+      <div class="market-row">
+        ${yes != null ? `<div class="market-prob ${cls}">${escapeHtml(yes)}¢</div>` : '<div class="market-prob mid">—</div>'}
+        <div style="flex:1;min-width:0">
+          <a href="${escapeHtml(safeUrl)}" target="_blank" rel="noopener"
+             style="text-decoration:none;color:var(--text);font-size:12px;display:block;line-height:1.4;
+                    white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
+            ${escapeHtml(m.question)}
+          </a>
+          <div style="font-size:10px;color:var(--muted);margin-top:1px">${escapeHtml(vol)} vol</div>
+        </div>
+        ${cat ? `<span class="cat-pill">${cat}</span>` : ''}
+      </div>`;
+  }).join('');
+}
+
+function renderMarketsFull(markets) {
+  const el = document.getElementById('markets-full-body');
+  if (!markets.length) {
+    el.innerHTML = `<div class="empty-feed">No market data available.</div>`;
+    return;
+  }
+  el.innerHTML = markets.map((m, i) => {
+    const prices = m.outcomePrices || [];
+    const yes    = prices[0] != null ? (prices[0] * 100).toFixed(0) : null;
+    const cls    = yes != null ? (yes >= 70 ? 'high' : yes <= 30 ? 'low' : 'mid') : '';
+    const safeUrl = (m.url && m.url.startsWith('https://polymarket.com')) ? m.url : '#';
+
+    return `
+      <div class="market-row" style="padding:14px 20px;">
+        <div style="font-size:13px;color:var(--muted);font-family:var(--mono);min-width:24px">${i+1}</div>
+        ${yes != null ? `<div class="market-prob ${cls}" style="min-width:52px">${escapeHtml(yes)}¢</div>` : '<div class="market-prob mid" style="min-width:52px">—</div>'}
+        <div style="flex:1;min-width:0">
+          <a href="${escapeHtml(safeUrl)}" target="_blank" rel="noopener"
+             style="text-decoration:none;color:var(--text);font-size:14px;font-weight:500;">
+            ${escapeHtml(m.question)}
+          </a>
+        </div>
+        ${m.category ? `<span class="cat-pill">${escapeHtml(m.category)}</span>` : ''}
+        <div class="market-vol">${fmtUsd(m.volume24h)}</div>
+        <div class="market-vol" style="margin-left:8px">${fmtUsd(m.liquidity)} liq</div>
+      </div>`;
+  }).join('');
+}
+
+// ── Tab switching ─────────────────────────────────────────────────────────
+
+document.querySelectorAll('.tab').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+
+    const tab = btn.dataset.tab;
+    document.getElementById('tab-leaderboard').style.display = tab === 'leaderboard' ? '' : 'none';
+    document.getElementById('tab-whales').style.display      = tab === 'whales'      ? '' : 'none';
+    document.getElementById('tab-markets').style.display     = tab === 'markets'     ? '' : 'none';
+    document.getElementById('search-wrap').style.display     = tab === 'leaderboard' ? '' : 'none';
+
+    // Lazy-load tabs on first visit
+    if (tab === 'whales' && !document.getElementById('whale-feed-body').querySelector('.whale-row')) {
+      loadWhaleFeed();
+    }
+    if (tab === 'markets' && !document.getElementById('markets-full-body').querySelector('.market-row')) {
+      loadMarkets();
+    }
+  });
+});
+
+// ── Sort columns ──────────────────────────────────────────────────────────
+
+document.querySelectorAll('thead th[data-col]').forEach(th => {
+  th.addEventListener('click', () => {
+    const col = th.dataset.col;
+    if (sortCol === col) {
+      sortDir *= -1;
+    } else {
+      sortCol = col;
+      sortDir = -1;
+    }
+    document.querySelectorAll('thead th').forEach(h => {
+      h.classList.remove('sorted');
+      const arr = h.querySelector('.sort-arrow');
+      if (arr) arr.textContent = '↕';
+    });
+    th.classList.add('sorted');
+    const arr = th.querySelector('.sort-arrow');
+    if (arr) arr.textContent = sortDir === -1 ? '▼' : '▲';
+    renderLeaderboard();
+  });
+});
+
+// ── Search ────────────────────────────────────────────────────────────────
+
+document.getElementById('search-input').addEventListener('input', e => {
+  searchQuery = e.target.value;
+  renderLeaderboard();
+});
+
+// ── Boot ──────────────────────────────────────────────────────────────────
+
+(async () => {
+  await Promise.all([
+    loadStats(),
+    loadLeaderboard(),
+  ]);
+
+  // Keep data fresh — poll every 60 seconds.
+  // Leaderboard: refresh the top-traders table.
+  // Stats: refresh the header stat strip.
+  // Whale feed / markets: only refresh when the tab is actively visible.
+  const POLL_MS = 60_000;
+  setInterval(async () => {
+    try {
+      await loadStats();
+    } catch (_) { /* silently degrade */ }
+  }, POLL_MS);
+
+  setInterval(async () => {
+    try {
+      await loadLeaderboard();
+    } catch (_) { /* silently degrade */ }
+  }, POLL_MS);
+
+  // Refresh the active tab's data when it's whales or markets
+  setInterval(async () => {
+    const activeTab = document.querySelector('.tab.active')?.dataset?.tab;
+    if (activeTab === 'whales') {
+      try { await loadWhaleFeed(); } catch (_) { /* silently degrade */ }
+    } else if (activeTab === 'markets') {
+      try { await loadMarkets(); } catch (_) { /* silently degrade */ }
+    }
+  }, POLL_MS);
+})();
+
+// ── Mobile hamburger toggle ────────────────────────────────────────────────
+const hamburgerBtn = document.getElementById('hamburger');
+const navLinks     = document.getElementById('nav-links');
+if (hamburgerBtn && navLinks) {
+  hamburgerBtn.addEventListener('click', () => {
+    const isOpen = navLinks.classList.toggle('open');
+    hamburgerBtn.setAttribute('aria-expanded', String(isOpen));
+  });
+  navLinks.addEventListener('click', e => {
+    if (e.target.tagName === 'A') {
+      navLinks.classList.remove('open');
+      hamburgerBtn.setAttribute('aria-expanded', 'false');
+    }
+  });
+}
+</script>
+
+</body>
+</html>

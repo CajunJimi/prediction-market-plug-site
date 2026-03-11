@@ -138,6 +138,27 @@
 
     .nav-links a:hover { color: var(--text); }
 
+    /* Hamburger — hidden on desktop, shown on mobile */
+    .hamburger {
+      display: none;
+      flex-direction: column;
+      justify-content: center;
+      gap: 5px;
+      width: 36px;
+      height: 36px;
+      padding: 4px;
+      background: none;
+      border: none;
+      cursor: pointer;
+    }
+    .hamburger span {
+      display: block;
+      height: 2px;
+      background: var(--text);
+      border-radius: 2px;
+      transition: all 0.2s;
+    }
+
     .btn {
       display: inline-flex;
       align-items: center;
@@ -927,6 +948,19 @@
       .how-steps      { grid-template-columns: 1fr; }
       .community-grid { grid-template-columns: 1fr; }
       .nav-links      { display: none; }
+      .hamburger      { display: flex; }
+      .nav-links.open {
+        display: flex;
+        flex-direction: column;
+        position: fixed;
+        top: 64px;
+        left: 0; right: 0;
+        background: rgba(6,8,15,0.98);
+        border-bottom: 1px solid rgba(255,255,255,0.08);
+        padding: 20px 24px;
+        gap: 16px;
+        z-index: 200;
+      }
       .hero-stats     { gap: 32px; }
       section         { padding: 64px 0; }
       .manifesto      { padding: 40px 24px; }
@@ -942,8 +976,12 @@
         <img src="logo.png" alt="Prediction Market Plug" />
         <span>Prediction Market Plug</span>
       </a>
-      <ul class="nav-links">
+      <ul class="nav-links" id="nav-links">
         <li><a href="#signals">Signals</a></li>
+        <li><a href="/leaderboard.html">Leaderboard</a></li>
+        <li><a href="/graph.html">Graph</a></li>
+        <li><a href="/backtest.html">Backtest</a></li>
+        <li><a href="/wallet.html">Wallet</a></li>
         <li><a href="#pricing">Pricing</a></li>
         <li><a href="#community">Community</a></li>
         <li><a href="#how-it-works">Custom Build</a></li>
@@ -952,6 +990,10 @@
       <a class="btn btn-primary" href="https://discord.gg/XsFdkjeg" target="_blank" rel="noopener">
         Join Free →
       </a>
+      <!-- Hamburger toggle for mobile -->
+      <button class="hamburger" id="hamburger" aria-label="Toggle navigation" aria-expanded="false">
+        <span></span><span></span><span></span>
+      </button>
     </div>
   </nav>
 
@@ -1389,6 +1431,25 @@
       </div>
     </div>
   </footer>
+
+  <script>
+    // ── Mobile hamburger toggle ──────────────────────────────────────────────
+    const hamburgerBtn = document.getElementById('hamburger');
+    const navLinks     = document.getElementById('nav-links');
+    if (hamburgerBtn && navLinks) {
+      hamburgerBtn.addEventListener('click', () => {
+        const isOpen = navLinks.classList.toggle('open');
+        hamburgerBtn.setAttribute('aria-expanded', String(isOpen));
+      });
+      // Close drawer when a link is tapped
+      navLinks.addEventListener('click', e => {
+        if (e.target.tagName === 'A') {
+          navLinks.classList.remove('open');
+          hamburgerBtn.setAttribute('aria-expanded', 'false');
+        }
+      });
+    }
+  </script>
 
 </body>
 </html>
