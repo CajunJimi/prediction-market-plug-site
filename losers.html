@@ -1,0 +1,623 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <!-- ── Beta password gate ────────────────────────────────────────────────
+       Runs before any page content renders. Sets a 7-day cookie on success.
+       Change PASS to update the shared password — redeploy to take effect.
+  ──────────────────────────────────────────────────────────────────────── -->
+  <script>
+  (function(){
+    var COOKIE='pmp_beta_auth', PASS='polymarket2026', DAYS=7;
+    function getCookie(n){var m=document.cookie.match('(^|;)\\s*'+n+'\\s*=\\s*([^;]+)');return m?m.pop():'';}
+    if(getCookie(COOKIE)===PASS)return;
+    document.documentElement.style.visibility='hidden';
+    window.addEventListener('DOMContentLoaded',function(){
+      document.documentElement.style.visibility='';
+      var d=document.createElement('div');
+      d.innerHTML='<div style="position:fixed;inset:0;background:#0a0c10;display:flex;align-items:center;justify-content:center;z-index:99999;font-family:system-ui,sans-serif"><div style="background:#111318;border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:40px;width:320px;text-align:center"><div style="font-size:22px;font-weight:700;color:#e2e8f0;margin-bottom:6px">PredictionMarketPlug</div><div style="font-size:13px;color:#64748b;margin-bottom:24px">Beta — enter password to continue</div><input id="_pw_in" type="password" placeholder="Password" style="width:100%;padding:11px 14px;background:#1f2433;border:1px solid rgba(255,255,255,.1);border-radius:8px;color:#e2e8f0;font-size:14px;outline:none;box-sizing:border-box;margin-bottom:10px" /><div id="_pw_err" style="color:#ef4444;font-size:12px;min-height:18px;margin-bottom:10px"></div><button id="_pw_btn" style="width:100%;padding:11px;background:#00d4ff;color:#000;font-weight:700;font-size:14px;border:none;border-radius:8px;cursor:pointer">Enter</button></div></div>';
+      document.body.prepend(d);
+      function attempt(){
+        var v=document.getElementById('_pw_in').value;
+        if(v===PASS){
+          var e=new Date();e.setDate(e.getDate()+DAYS);
+          document.cookie=COOKIE+'='+PASS+';expires='+e.toUTCString()+';path=/;SameSite=Strict';
+          d.remove();
+        } else {
+          document.getElementById('_pw_err').textContent='Incorrect password';
+          document.getElementById('_pw_in').value='';
+          document.getElementById('_pw_in').focus();
+        }
+      }
+      document.getElementById('_pw_btn').onclick=attempt;
+      document.getElementById('_pw_in').onkeydown=function(e){if(e.key==='Enter')attempt();};
+      document.getElementById('_pw_in').focus();
+    });
+  })();
+  </script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Hall of Shame — PredictionMarketPlug</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+
+  <style>
+    /* ── BASE ─────────────────────────────────────────────────────────── */
+    :root {
+      --dark:        #0a0c10;
+      --surface:     #111318;
+      --surface2:    #181c24;
+      --surface3:    #1f2433;
+      --border:      rgba(255,255,255,0.07);
+      --text:        #e2e8f0;
+      --muted:       #64748b;
+      --cyan:        #00d4ff;
+      --green:       #22c55e;
+      --red:         #ef4444;
+      --amber:       #f59e0b;
+      --purple:      #a855f7;
+      --mono:        'JetBrains Mono', monospace;
+      --sans:        'Space Grotesk', sans-serif;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { font-size: 14px; scroll-behavior: smooth; }
+    body {
+      background: var(--dark);
+      color: var(--text);
+      font-family: var(--sans);
+      min-height: 100vh;
+      line-height: 1.5;
+    }
+
+    /* ── NAV ──────────────────────────────────────────────────────────── */
+    nav {
+      position: sticky; top: 0; z-index: 100;
+      background: rgba(10,12,16,0.92);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      padding: 0 24px;
+      height: 52px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .nav-brand {
+      display: flex; align-items: center; gap: 10px;
+      font-weight: 700; font-size: 15px; color: var(--cyan);
+      text-decoration: none;
+    }
+    .nav-brand svg { width: 22px; height: 22px; }
+    #nav-links {
+      display: flex; align-items: center; gap: 6px;
+    }
+    #nav-links a {
+      color: var(--muted); text-decoration: none;
+      font-size: 13px; font-weight: 500;
+      padding: 5px 10px; border-radius: 6px;
+      transition: color .15s, background .15s;
+    }
+    #nav-links a:hover { color: var(--text); background: rgba(255,255,255,.05); }
+    #nav-links a.active { color: var(--red); background: rgba(239,68,68,.08); }
+    .hamburger { display: none; background: none; border: none; cursor: pointer; color: var(--text); padding: 4px; }
+    @media (max-width: 700px) {
+      .hamburger { display: block; }
+      #nav-links {
+        display: none; position: absolute; top: 52px; left: 0; right: 0;
+        background: var(--surface); border-bottom: 1px solid var(--border);
+        flex-direction: column; align-items: flex-start; gap: 2px; padding: 10px 16px;
+      }
+      #nav-links.open { display: flex; }
+      #nav-links a { width: 100%; }
+    }
+
+    /* ── PAGE LAYOUT ─────────────────────────────────────────────────── */
+    .page { max-width: 1200px; margin: 0 auto; padding: 28px 20px 60px; }
+
+    /* ── HEADER ──────────────────────────────────────────────────────── */
+    .page-header { margin-bottom: 28px; }
+    .page-header h1 {
+      font-size: 26px; font-weight: 700; color: var(--text);
+      display: flex; align-items: center; gap: 10px;
+    }
+    .page-header p { color: var(--muted); margin-top: 6px; font-size: 13px; max-width: 600px; }
+
+    /* ── STAT STRIP ──────────────────────────────────────────────────── */
+    .stat-strip {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 12px; margin-bottom: 24px;
+    }
+    .stat-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 10px; padding: 14px 16px;
+    }
+    .stat-card .val {
+      font-family: var(--mono); font-size: 22px; font-weight: 700;
+      color: var(--red);
+    }
+    .stat-card .val.neutral { color: var(--text); }
+    .stat-card .val.green   { color: var(--green); }
+    .stat-card .lbl {
+      font-size: 11px; color: var(--muted); margin-top: 3px;
+      text-transform: uppercase; letter-spacing: .05em;
+    }
+
+    /* ── CONTROLS ────────────────────────────────────────────────────── */
+    .controls {
+      display: flex; flex-wrap: wrap; gap: 10px; align-items: center;
+      margin-bottom: 20px;
+    }
+    .controls label { font-size: 12px; color: var(--muted); margin-right: 4px; }
+    .controls select, .controls input[type=number] {
+      background: var(--surface); border: 1px solid var(--border);
+      color: var(--text); border-radius: 6px; padding: 7px 10px;
+      font-family: var(--sans); font-size: 13px; outline: none;
+      transition: border-color .15s;
+    }
+    .controls select:focus, .controls input[type=number]:focus {
+      border-color: rgba(239,68,68,.5);
+    }
+    .controls input[type=number] { width: 90px; }
+    .btn {
+      padding: 8px 18px; border-radius: 6px; font-size: 13px; font-weight: 600;
+      border: none; cursor: pointer; font-family: var(--sans);
+      transition: opacity .15s, transform .1s;
+    }
+    .btn:hover { opacity: .85; }
+    .btn:active { transform: scale(.97); }
+    .btn-primary { background: var(--red); color: #fff; }
+    .btn-ghost {
+      background: transparent; color: var(--muted);
+      border: 1px solid var(--border);
+    }
+    .btn-ghost:hover { color: var(--text); border-color: rgba(255,255,255,.2); }
+
+    /* ── TABLE ───────────────────────────────────────────────────────── */
+    .table-wrap {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 12px; overflow: hidden;
+    }
+    table { width: 100%; border-collapse: collapse; }
+    thead th {
+      padding: 11px 14px;
+      text-align: left; font-size: 11px; font-weight: 600;
+      color: var(--muted); text-transform: uppercase; letter-spacing: .05em;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface2);
+      white-space: nowrap;
+    }
+    thead th.sort-active { color: var(--red); }
+    thead th.r { text-align: right; }
+    tbody tr {
+      border-bottom: 1px solid rgba(255,255,255,.04);
+      transition: background .1s;
+    }
+    tbody tr:last-child { border-bottom: none; }
+    tbody tr:hover { background: rgba(255,255,255,.03); }
+    tbody td { padding: 11px 14px; font-size: 13px; vertical-align: middle; }
+    tbody td.r { text-align: right; font-family: var(--mono); }
+    tbody td.mono { font-family: var(--mono); }
+
+    /* rank badge */
+    .rank { font-family: var(--mono); color: var(--muted); font-size: 12px; min-width: 30px; }
+
+    /* wallet name cell */
+    .wallet-name { font-weight: 600; color: var(--text); }
+    .wallet-addr { font-family: var(--mono); font-size: 11px; color: var(--muted); margin-top: 2px; }
+    .wallet-links { display: flex; gap: 8px; margin-top: 4px; }
+    .wallet-links a {
+      font-size: 11px; color: var(--cyan); text-decoration: none;
+      opacity: .7; transition: opacity .15s;
+    }
+    .wallet-links a:hover { opacity: 1; }
+
+    /* win-rate bar */
+    .wr-cell { display: flex; align-items: center; gap: 8px; }
+    .wr-bar-bg {
+      width: 64px; height: 5px; border-radius: 3px;
+      background: rgba(255,255,255,.08); flex-shrink: 0;
+    }
+    .wr-bar-fill { height: 100%; border-radius: 3px; }
+    .wr-val { font-family: var(--mono); font-size: 12px; white-space: nowrap; }
+
+    /* streak badge */
+    .streak {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 2px 8px; border-radius: 20px;
+      font-family: var(--mono); font-size: 11px; font-weight: 600;
+    }
+    .streak.loss  { background: rgba(239,68,68,.12); color: var(--red); }
+    .streak.win   { background: rgba(34,197,94,.12);  color: var(--green); }
+    .streak.none  { background: rgba(255,255,255,.06); color: var(--muted); }
+
+    /* ── LOADING / EMPTY ─────────────────────────────────────────────── */
+    .loading, .empty {
+      text-align: center; padding: 60px 20px; color: var(--muted);
+    }
+    .loading .spinner {
+      width: 32px; height: 32px; border-radius: 50%;
+      border: 3px solid rgba(255,255,255,.08);
+      border-top-color: var(--red);
+      animation: spin .8s linear infinite;
+      margin: 0 auto 14px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .empty-icon { font-size: 40px; margin-bottom: 10px; }
+
+    /* ── INSIGHT BOX ─────────────────────────────────────────────────── */
+    .insight {
+      margin-top: 20px; padding: 14px 18px;
+      background: rgba(239,68,68,.06); border: 1px solid rgba(239,68,68,.15);
+      border-radius: 10px; font-size: 13px; color: var(--muted); line-height: 1.7;
+    }
+    .insight strong { color: var(--red); }
+    .insight a { color: var(--cyan); text-decoration: none; }
+    .insight a:hover { text-decoration: underline; }
+
+    /* ── OPPORTUNITY CALLOUT ─────────────────────────────────────────── */
+    .opportunity {
+      margin-top: 18px; padding: 14px 18px;
+      background: rgba(34,197,94,.06); border: 1px solid rgba(34,197,94,.15);
+      border-radius: 10px; font-size: 13px; line-height: 1.7;
+    }
+    .opportunity .opp-title {
+      font-weight: 700; color: var(--green); margin-bottom: 6px; font-size: 14px;
+    }
+    .opportunity ul { padding-left: 18px; color: var(--muted); }
+    .opportunity li { margin-bottom: 4px; }
+    .opportunity strong { color: var(--text); }
+
+    /* ── RESPONSIVE ──────────────────────────────────────────────────── */
+    @media (max-width: 768px) {
+      .hide-mobile { display: none; }
+      thead th, tbody td { padding: 9px 10px; }
+    }
+    @media (max-width: 500px) {
+      .hide-sm { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── NAV ───────────────────────────────────────────────────────────────── -->
+<nav>
+  <a class="nav-brand" href="/">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/>
+      <polyline points="16 7 22 7 22 13"/>
+    </svg>
+    PredictionMarketPlug
+  </a>
+  <button class="hamburger" id="hamburger" aria-label="Menu">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
+    </svg>
+  </button>
+  <div id="nav-links">
+    <a href="/leaderboard.html">Leaderboard</a>
+    <a href="/graph.html">Graph</a>
+    <a href="/backtest.html">Backtest</a>
+    <a href="/wallet.html">Wallet</a>
+    <a href="/losers.html" class="active">Hall of Shame</a>
+  </div>
+</nav>
+
+<!-- ── PAGE ───────────────────────────────────────────────────────────────── -->
+<div class="page">
+
+  <!-- Header -->
+  <div class="page-header">
+    <h1>
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2">
+        <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+        <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+      </svg>
+      Hall of Shame
+    </h1>
+    <p>
+      Wallets with the worst track records tracked by our bot — consistently wrong,
+      often with high conviction. Useful for identifying counter-trade opportunities
+      and understanding how the losing side thinks.
+    </p>
+  </div>
+
+  <!-- Stat strip (populated by JS) -->
+  <div class="stat-strip" id="stats">
+    <div class="stat-card"><div class="val neutral" id="stat-total">—</div><div class="lbl">Wallets Tracked</div></div>
+    <div class="stat-card"><div class="val" id="stat-losing">—</div><div class="lbl">Below 50% Win Rate</div></div>
+    <div class="stat-card"><div class="val" id="stat-pct">—</div><div class="lbl">% of Tracked</div></div>
+    <div class="stat-card"><div class="val" id="stat-avg-wr">—</div><div class="lbl">Avg Win Rate (Platform)</div></div>
+  </div>
+
+  <!-- Controls -->
+  <div class="controls">
+    <div>
+      <label for="ctrl-sort">Sort by</label>
+      <select id="ctrl-sort">
+        <option value="loss">Est. $ Lost (default)</option>
+        <option value="winRate">Worst Win Rate</option>
+        <option value="streak">Active Losing Streak</option>
+      </select>
+    </div>
+    <div>
+      <label for="ctrl-min-trades">Min trades</label>
+      <input id="ctrl-min-trades" type="number" value="5" min="1" max="100" />
+    </div>
+    <div>
+      <label for="ctrl-min-vol">Min volume ($)</label>
+      <input id="ctrl-min-vol" type="number" value="0" min="0" step="100" />
+    </div>
+    <div>
+      <label for="ctrl-limit">Show</label>
+      <select id="ctrl-limit">
+        <option value="25">Top 25</option>
+        <option value="50" selected>Top 50</option>
+        <option value="100">Top 100</option>
+      </select>
+    </div>
+    <button class="btn btn-primary" id="btn-load">🔄 Refresh</button>
+    <button class="btn btn-ghost" id="btn-export" style="display:none">⬇ Export CSV</button>
+  </div>
+
+  <!-- Table -->
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Wallet</th>
+          <th id="th-wr" class="sort-active">Win Rate</th>
+          <th class="r hide-sm">Trades</th>
+          <th class="r">Wrong</th>
+          <th class="r" id="th-loss">Est. $ Lost</th>
+          <th class="r hide-mobile">Avg Size</th>
+          <th class="r hide-mobile">Volume</th>
+          <th class="hide-mobile">Streak</th>
+        </tr>
+      </thead>
+      <tbody id="tbody">
+        <tr>
+          <td colspan="9">
+            <div class="loading">
+              <div class="spinner"></div>
+              <div>Loading Hall of Shame…</div>
+            </div>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Opportunity insight box (shown after data loads) -->
+  <div class="opportunity" id="opp-box" style="display:none">
+    <div class="opp-title">💡 How to Use This for Marketing Opportunities</div>
+    <ul>
+      <li><strong>Counter-trade signals:</strong> Wallets consistently below 40% win rate are losing on both sides of markets — when they make a large bet, the contrarian position has positive expected value.</li>
+      <li><strong>Content &amp; outreach:</strong> High-volume losers are actively engaged bettors who clearly want to win. They're the most likely to pay for better tools, signals, or coaching.</li>
+      <li><strong>Pattern analysis:</strong> Click any wallet to open their full profile and see which categories they keep losing in — they may be experts in one area and terrible in others.</li>
+      <li><strong>Confidence vs accuracy:</strong> Sort by "Worst Win Rate" and look for wallets with high average trade sizes — they're spending big with conviction and losing. Prime target for copy-trade counter-positioning.</li>
+    </ul>
+  </div>
+
+  <div class="insight" id="insight-box" style="display:none">
+    ⚠️ <strong>Important:</strong> Polymarket's own leaderboard uses unrealized mark-to-market PNL on open positions —
+    a wallet can show as a "winner" on Polymarket while having deeply negative <em>resolved</em> P&L.
+    Our win rate is based on resolved trades only (actual outcomes), which is a more reliable signal.
+    Click any wallet name to see their full equity curve on the
+    <a href="/wallet.html">Wallet page</a>.
+  </div>
+
+</div><!-- /.page -->
+
+<script>
+/* ── Config ─────────────────────────────────────────────────────────────── */
+const API = (location.hostname === 'localhost' || location.hostname === '127.0.0.1')
+  ? 'http://100.125.187.81:4001'
+  : 'https://api.predictionmarketplug.com';
+
+/* ── State ──────────────────────────────────────────────────────────────── */
+let currentData = [];
+
+/* ── Nav hamburger ──────────────────────────────────────────────────────── */
+document.getElementById('hamburger').addEventListener('click', () => {
+  document.getElementById('nav-links').classList.toggle('open');
+});
+
+/* ── Formatting helpers ─────────────────────────────────────────────────── */
+function fDollar(n) {
+  if (n == null || isNaN(n)) return '—';
+  if (n >= 1_000_000) return '$' + (n / 1_000_000).toFixed(2) + 'M';
+  if (n >= 1_000)     return '$' + (n / 1_000).toFixed(1) + 'K';
+  return '$' + Math.round(n).toLocaleString();
+}
+
+function fNum(n) {
+  if (n == null) return '—';
+  return Number(n).toLocaleString();
+}
+
+/* ── Win-rate bar helper ─────────────────────────────────────────────────── */
+function wrColor(wr) {
+  if (wr == null) return 'var(--muted)';
+  if (wr < 35)  return 'var(--red)';
+  if (wr < 50)  return '#f97316';   /* orange */
+  if (wr < 65)  return 'var(--amber)';
+  return 'var(--green)';
+}
+
+/* ── Streak badge ────────────────────────────────────────────────────────── */
+function streakBadge(streak) {
+  if (streak == null || streak === 0) {
+    return '<span class="streak none">—</span>';
+  }
+  if (streak < 0) {
+    // Negative = active losing streak
+    return `<span class="streak loss">📉 ${Math.abs(streak)} L</span>`;
+  }
+  return `<span class="streak win">🔥 ${streak} W</span>`;
+}
+
+/* ── Render table ────────────────────────────────────────────────────────── */
+function renderTable(data) {
+  const tbody = document.getElementById('tbody');
+
+  if (!data || data.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="9"><div class="empty"><div class="empty-icon">🎉</div>No wallets match these filters</div></td></tr>`;
+    document.getElementById('opp-box').style.display = 'none';
+    document.getElementById('insight-box').style.display = 'none';
+    return;
+  }
+
+  const rows = data.map(w => {
+    const wr     = w.winRate;
+    const color  = wrColor(wr);
+    const wrPct  = wr != null ? wr.toFixed(1) + '%' : '—';
+    const wrFill = wr != null ? Math.min(wr, 100) : 0;
+
+    const name = w.displayName
+      ? `<div class="wallet-name">${esc(w.displayName)}</div>`
+      : `<div class="wallet-name" style="color:var(--muted);font-size:12px">${esc(w.shortAddr || '—')}</div>`;
+
+    const addr = w.displayName
+      ? `<div class="wallet-addr">${esc(w.shortAddr || '')}</div>`
+      : '';
+
+    // Links: full profile on PMP wallet page + Polymarket
+    const links = w.fullAddr
+      ? `<div class="wallet-links">
+           <a href="/wallet.html?wallet=${encodeURIComponent(w.fullAddr)}" title="Full profile">📊 Profile</a>
+           <a href="${esc(w.polymarketUrl)}" target="_blank" rel="noopener" title="Polymarket">🔗 Polymarket</a>
+         </div>`
+      : '';
+
+    return `<tr>
+      <td><span class="rank">${w.rank}</span></td>
+      <td>${name}${addr}${links}</td>
+      <td>
+        <div class="wr-cell">
+          <div class="wr-bar-bg">
+            <div class="wr-bar-fill" style="width:${wrFill}%;background:${color}"></div>
+          </div>
+          <span class="wr-val" style="color:${color}">${wrPct}</span>
+        </div>
+      </td>
+      <td class="r hide-sm">${fNum(w.totalTrades)}</td>
+      <td class="r mono" style="color:var(--red)">${fNum(w.incorrectTrades)}</td>
+      <td class="r mono" style="color:var(--red)">${fDollar(w.estimatedLossUsd)}</td>
+      <td class="r hide-mobile mono" style="color:var(--muted)">${fDollar(w.avgTradeSizeUsd)}</td>
+      <td class="r hide-mobile mono" style="color:var(--muted)">${fDollar(w.totalVolumeUsd)}</td>
+      <td class="hide-mobile">${streakBadge(w.currentStreak)}</td>
+    </tr>`;
+  }).join('');
+
+  tbody.innerHTML = rows;
+  document.getElementById('btn-export').style.display = 'inline-flex';
+  document.getElementById('opp-box').style.display = 'block';
+  document.getElementById('insight-box').style.display = 'block';
+}
+
+/* ── Escape HTML ────────────────────────────────────────────────────────── */
+function esc(s) {
+  if (s == null) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+/* ── Load data ───────────────────────────────────────────────────────────── */
+async function loadData() {
+  const sortBy    = document.getElementById('ctrl-sort').value;
+  const minTrades = parseInt(document.getElementById('ctrl-min-trades').value, 10) || 5;
+  const minVol    = parseFloat(document.getElementById('ctrl-min-vol').value) || 0;
+  const limit     = parseInt(document.getElementById('ctrl-limit').value, 10) || 50;
+
+  // Show loading state
+  document.getElementById('tbody').innerHTML = `
+    <tr><td colspan="9"><div class="loading"><div class="spinner"></div><div>Loading worst performers…</div></div></td></tr>`;
+  document.getElementById('btn-export').style.display = 'none';
+  document.getElementById('opp-box').style.display = 'none';
+  document.getElementById('insight-box').style.display = 'none';
+
+  // Update column header sort highlight
+  document.getElementById('th-wr').classList.toggle('sort-active', sortBy === 'winRate');
+  document.getElementById('th-loss').classList.toggle('sort-active', sortBy === 'loss');
+
+  try {
+    const url = `${API}/public/losers?sortBy=${sortBy}&minTrades=${minTrades}&minVol=${minVol}&limit=${limit}`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    currentData = data;
+    renderTable(data);
+  } catch (err) {
+    document.getElementById('tbody').innerHTML = `
+      <tr><td colspan="9"><div class="empty">
+        <div class="empty-icon">⚠️</div>
+        <div>Failed to load data</div>
+        <div style="font-size:11px;margin-top:6px">${esc(err.message)}</div>
+      </div></td></tr>`;
+    console.error('Losers fetch error:', err);
+  }
+}
+
+/* ── Load platform stats (for stat strip) ─────────────────────────────── */
+async function loadStats() {
+  try {
+    const res = await fetch(`${API}/public/stats`);
+    if (!res.ok) return;
+    const s = await res.json();
+    document.getElementById('stat-total').textContent  = (s.trackedWallets || 0).toLocaleString();
+  } catch { /* non-fatal */ }
+
+  // Also compute stats from the loaded leaderboard data after it arrives
+  // We re-read after renderTable fires
+}
+
+/* ── Update stat strip from loaded data ────────────────────────────────── */
+function updateStats(data, allData) {
+  // These stats are derived from all losers (not just the page slice)
+  if (!allData || allData.length === 0) return;
+  const losing = allData.filter(w => (w.winRate ?? 100) < 50).length;
+  document.getElementById('stat-losing').textContent = losing.toLocaleString();
+
+  const total = parseInt(document.getElementById('stat-total').textContent.replace(/,/g,''), 10) || 0;
+  if (total > 0) {
+    document.getElementById('stat-pct').textContent = Math.round(losing / total * 100) + '%';
+  }
+
+  const avg = allData.reduce((s, w) => s + (w.winRate ?? 50), 0) / allData.length;
+  document.getElementById('stat-avg-wr').textContent = avg.toFixed(1) + '%';
+}
+
+/* ── CSV Export ─────────────────────────────────────────────────────────── */
+document.getElementById('btn-export').addEventListener('click', () => {
+  if (!currentData.length) return;
+  const headers = ['Rank','Name','Address','Win Rate (%)','Total Trades','Wrong','Est. Loss ($)','Volume ($)','Avg Size ($)','Streak','Polymarket URL'];
+  const rows = currentData.map(w => [
+    w.rank,
+    w.displayName || '',
+    w.fullAddr || '',
+    w.winRate != null ? w.winRate.toFixed(1) : '',
+    w.totalTrades,
+    w.incorrectTrades,
+    w.estimatedLossUsd != null ? w.estimatedLossUsd.toFixed(2) : '',
+    w.totalVolumeUsd != null ? w.totalVolumeUsd.toFixed(2) : '',
+    w.avgTradeSizeUsd != null ? w.avgTradeSizeUsd.toFixed(2) : '',
+    w.currentStreak != null ? w.currentStreak : '',
+    w.polymarketUrl || '',
+  ]);
+  const csv = [headers, ...rows].map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `pmp-losers-${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+});
+
+/* ── Wire up controls ───────────────────────────────────────────────────── */
+document.getElementById('btn-load').addEventListener('click', loadData);
+document.getElementById('ctrl-sort').addEventListener('change', loadData);
+
+/* ── Initial load ────────────────────────────────────────────────────────── */
+loadStats();
+loadData().then(() => updateStats(currentData, currentData));
+</script>
+</body>
+</html>
