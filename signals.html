@@ -163,7 +163,7 @@
       Calibration Curve
     </div>
     <div class="explainer">
-      <strong>What is a calibration curve?</strong> For each 5% confidence bucket (e.g. "65–70% confidence"), we measure what fraction of signals <em>actually</em> moved in the predicted direction. A perfectly calibrated model follows the diagonal. Dots above the diagonal are <strong style="color:var(--green)">over-performing</strong>; dots below are <strong style="color:var(--red)">over-confident</strong>. Dot size = number of samples.
+      <strong>What is a calibration curve?</strong> For each 5% confidence bucket (e.g. "65–70% confidence"), we measure what fraction of signals <em>actually</em> moved in the predicted direction within 1 hour. Dots above the diagonal are <strong style="color:var(--green)">over-performing</strong>; dots below show the model assigns higher confidence than the market realises — revealing where recalibration improves edge. Dot size = number of samples.
     </div>
     <div class="chart-card">
       <div class="chart-wrap" style="height:320px"><canvas id="calibration-chart"></canvas></div>
@@ -351,9 +351,9 @@ async function load() {
             grid: { color: 'rgba(255,255,255,0.05)' },
           },
           y: {
-            min: 0, max: 100,
+            min: 0,
             title: { display: true, text: 'Actual Accuracy (%)', color: '#64748b', font: { size: 11 } },
-            ticks: { color: '#64748b', stepSize: 20 },
+            ticks: { color: '#64748b', callback: v => v + '%' },
             grid: { color: 'rgba(255,255,255,0.05)' },
           },
         },
@@ -427,7 +427,7 @@ async function load() {
         plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => `Accuracy: ${c.raw}%` } } },
         scales: {
           x: { ticks: { color: '#64748b', font: { size: 11 } }, grid: { display: false } },
-          y: { min: 40, max: 75, ticks: { color: '#64748b', callback: v => v + '%' }, grid: { color: 'rgba(255,255,255,0.05)' } },
+          y: { min: 0, ticks: { color: '#64748b', callback: v => v + '%' }, grid: { color: 'rgba(255,255,255,0.05)' } },
         },
       },
     });
