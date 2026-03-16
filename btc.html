@@ -1,0 +1,900 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <!-- ── Beta password gate ────────────────────────────────────────────────
+       Runs before any page content renders. Sets a 7-day cookie on success.
+       Change PASS to update the shared password — redeploy to take effect.
+  ──────────────────────────────────────────────────────────────────────── -->
+  <script>
+  (function(){
+    var COOKIE='pmp_beta_auth', PASS='polymarket2026', DAYS=7;
+    function getCookie(n){var m=document.cookie.match('(^|;)\\s*'+n+'\\s*=\\s*([^;]+)');return m?m.pop():'';}
+    if(getCookie(COOKIE)===PASS)return;
+    document.documentElement.style.visibility='hidden';
+    window.addEventListener('DOMContentLoaded',function(){
+      document.documentElement.style.visibility='';
+      var o=document.createElement('div');
+      o.innerHTML='<div style="position:fixed;inset:0;background:#06080f;z-index:9999;display:flex;align-items:center;justify-content:center;font-family:Space Grotesk,sans-serif"><div style="background:#0d1117;border:1px solid rgba(0,212,255,.2);border-radius:16px;padding:40px;text-align:center;max-width:360px;width:90%"><div style="font-size:32px;margin-bottom:8px">🔒</div><h2 style="color:#e2e8f0;font-size:18px;margin-bottom:6px">Beta Access</h2><p style="color:#64748b;font-size:13px;margin-bottom:20px">Enter your password to continue</p><input id="pg-in" type="password" placeholder="Password" style="width:100%;padding:12px 14px;background:#111827;border:1px solid rgba(0,212,255,.2);border-radius:8px;color:#e2e8f0;font-size:14px;margin-bottom:12px;outline:none;box-sizing:border-box"><div id="pg-err" style="color:#f87171;font-size:12px;margin-bottom:10px;height:16px"></div><button id="pg-btn" style="width:100%;padding:12px;background:linear-gradient(135deg,#00d4ff,#3b6ef8);border:none;border-radius:8px;color:#000;font-weight:600;font-size:14px;cursor:pointer">Enter</button></div></div>';
+      document.body.appendChild(o);
+      function attempt(){
+        var v=document.getElementById('pg-in').value;
+        if(v===PASS){
+          var e=new Date();e.setDate(e.getDate()+DAYS);
+          document.cookie=COOKIE+'='+PASS+';expires='+e.toUTCString()+';path=/';
+          o.remove();
+        } else {
+          document.getElementById('pg-err').textContent='Incorrect password';
+          document.getElementById('pg-in').style.border='1px solid rgba(248,113,113,.5)';
+        }
+      }
+      document.getElementById('pg-btn').addEventListener('click',attempt);
+      document.getElementById('pg-in').addEventListener('keydown',function(e){if(e.key==='Enter')attempt();});
+    });
+  })();
+  </script>
+
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BTC Bot Dashboard — Prediction Market Plug</title>
+  <link rel="icon" type="image/png" href="logo.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@3.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+
+  <style>
+    /* ── RESET & BASE ───────────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --cyan:     #00d4ff;
+      --blue:     #3b6ef8;
+      --purple:   #8b5cf6;
+      --pink:     #d946ef;
+      --green:    #22c55e;
+      --red:      #f87171;
+      --amber:    #f59e0b;
+      --dark:     #06080f;
+      --dark2:    #0d1117;
+      --dark3:    #111827;
+      --surface:  #0d1117;
+      --surface2: #111827;
+      --border:   rgba(0, 212, 255, 0.15);
+      --text:     #e2e8f0;
+      --muted:    #64748b;
+      --font:     'Space Grotesk', sans-serif;
+      --mono:     'JetBrains Mono', monospace;
+    }
+
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: var(--font);
+      background: var(--dark);
+      color: var(--text);
+      overflow-x: hidden;
+      line-height: 1.5;
+    }
+
+    /* Noise + grid texture matching site */
+    body::before {
+      content: '';
+      position: fixed; inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+      pointer-events: none; z-index: 0; opacity: 0.5;
+    }
+    body::after {
+      content: '';
+      position: fixed; inset: 0;
+      background-image:
+        linear-gradient(rgba(0,212,255,0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,212,255,0.03) 1px, transparent 1px);
+      background-size: 60px 60px;
+      pointer-events: none; z-index: 0;
+    }
+
+    /* ── NAV ────────────────────────────────────────────────────────────── */
+    nav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+      padding: 14px 0;
+      background: rgba(6,8,15,0.9);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--border);
+    }
+    nav .inner {
+      max-width: 1280px; margin: 0 auto; padding: 0 24px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .nav-logo {
+      display: flex; align-items: center; gap: 10px;
+      text-decoration: none; color: var(--text);
+    }
+    .nav-logo img { width: 32px; height: 32px; filter: drop-shadow(0 0 6px rgba(0,212,255,0.6)); }
+    .nav-logo span { font-weight: 600; font-size: 14px; }
+    .nav-links { display: flex; gap: 4px; list-style: none; }
+    .nav-links a {
+      color: var(--muted); text-decoration: none; font-size: 13px; font-weight: 500;
+      padding: 6px 10px; border-radius: 6px; transition: color .2s, background .2s;
+    }
+    .nav-links a:hover, .nav-links a.active { color: var(--text); background: var(--surface2); }
+    .live-badge {
+      display: flex; align-items: center; gap: 6px;
+      font-size: 11px; color: var(--green); font-weight: 600;
+      background: rgba(34,197,94,.1); border: 1px solid rgba(34,197,94,.25);
+      border-radius: 20px; padding: 4px 12px;
+    }
+    .live-badge .dot {
+      width: 6px; height: 6px; border-radius: 50%; background: var(--green);
+      animation: pulse 1.5s infinite;
+    }
+    @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+    /* ── LAYOUT ─────────────────────────────────────────────────────────── */
+    .page { max-width: 1280px; margin: 0 auto; padding: 88px 24px 60px; position: relative; z-index: 1; }
+
+    .page-header {
+      display: flex; align-items: flex-start; justify-content: space-between;
+      flex-wrap: wrap; gap: 16px; margin-bottom: 28px;
+    }
+    .page-header h1 { font-size: 24px; font-weight: 700; letter-spacing: -0.5px; }
+    .page-header p { color: var(--muted); font-size: 13px; margin-top: 4px; }
+
+    /* Tab strip for before/after rebalance */
+    .epoch-tabs {
+      display: flex; gap: 8px;
+    }
+    .epoch-tabs button {
+      padding: 6px 14px; border-radius: 8px; border: 1px solid var(--border);
+      background: transparent; color: var(--muted); font-size: 12px; font-weight: 600;
+      cursor: pointer; transition: all .2s; font-family: var(--font);
+    }
+    .epoch-tabs button.active {
+      background: rgba(0,212,255,.1); border-color: rgba(0,212,255,.4); color: var(--cyan);
+    }
+
+    /* ── GRID LAYOUTS ───────────────────────────────────────────────────── */
+    .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 16px; }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+    .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+
+    /* ── CARDS ──────────────────────────────────────────────────────────── */
+    .card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 12px; padding: 20px;
+    }
+    .card-title {
+      font-size: 11px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: .06em; color: var(--muted); margin-bottom: 14px;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .card-title .icon { font-size: 14px; }
+
+    /* ── STAT CARDS ─────────────────────────────────────────────────────── */
+    .stat-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 10px; padding: 16px 18px;
+    }
+    .stat-card .label { font-size: 10px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin-bottom: 6px; }
+    .stat-card .value { font-family: var(--mono); font-size: 28px; font-weight: 700; letter-spacing: -1px; }
+    .stat-card .sub { font-size: 11px; color: var(--muted); margin-top: 3px; }
+    .green { color: var(--green); }
+    .red   { color: var(--red); }
+    .cyan  { color: var(--cyan); }
+    .amber { color: var(--amber); }
+
+    /* ── TIMEFRAME BREAKDOWN TABLE ──────────────────────────────────────── */
+    .tf-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .tf-table th { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); text-align: left; padding: 0 0 10px; border-bottom: 1px solid var(--border); }
+    .tf-table td { padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,.04); vertical-align: middle; }
+    .tf-badge {
+      display: inline-block; padding: 3px 8px; border-radius: 6px; font-size: 11px; font-weight: 700;
+      font-family: var(--mono); background: var(--surface2); color: var(--cyan); border: 1px solid var(--border);
+    }
+    .win-bar-wrap { display: flex; align-items: center; gap: 8px; }
+    .win-bar { height: 6px; border-radius: 3px; background: var(--surface2); flex: 1; overflow: hidden; }
+    .win-bar-fill { height: 100%; border-radius: 3px; transition: width .6s; }
+
+    /* ── LIVE SIGNAL FEED ───────────────────────────────────────────────── */
+    .feed-list { display: flex; flex-direction: column; gap: 6px; max-height: 440px; overflow-y: auto; }
+    .feed-item {
+      display: flex; align-items: center; gap: 10px; padding: 10px 12px;
+      background: var(--surface2); border-radius: 8px; font-size: 12px;
+      border-left: 3px solid transparent; transition: border-color .3s;
+    }
+    .feed-item.new { animation: feedIn .4s ease; }
+    @keyframes feedIn { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
+    .feed-item.fired { border-left-color: var(--cyan); }
+    .feed-item.blocked { border-left-color: rgba(255,255,255,.06); opacity: .7; }
+    .feed-time { font-family: var(--mono); color: var(--muted); font-size: 11px; min-width: 44px; }
+    .dir-badge {
+      font-family: var(--mono); font-size: 10px; font-weight: 700;
+      padding: 2px 7px; border-radius: 5px; min-width: 36px; text-align: center;
+    }
+    .dir-badge.up { background: rgba(34,197,94,.15); color: var(--green); border: 1px solid rgba(34,197,94,.3); }
+    .dir-badge.down { background: rgba(248,113,113,.15); color: var(--red); border: 1px solid rgba(248,113,113,.3); }
+    .tf-pill {
+      font-size: 10px; font-weight: 600; padding: 2px 6px; border-radius: 4px;
+      background: var(--surface); border: 1px solid var(--border); color: var(--muted); font-family: var(--mono);
+    }
+    .conf-val { font-family: var(--mono); font-weight: 600; min-width: 40px; }
+    .block-tag {
+      margin-left: auto; font-size: 10px; font-weight: 600; padding: 2px 8px;
+      border-radius: 4px; background: rgba(100,116,139,.12); color: var(--muted);
+    }
+    .block-tag.fired { background: rgba(0,212,255,.1); color: var(--cyan); }
+
+    /* ── INDICATOR ACCURACY BARS ────────────────────────────────────────── */
+    .ind-list { display: flex; flex-direction: column; gap: 8px; }
+    .ind-row { display: flex; align-items: center; gap: 10px; font-size: 12px; }
+    .ind-name { min-width: 130px; color: var(--text); font-weight: 500; }
+    .ind-bar-wrap { flex: 1; height: 8px; background: var(--surface2); border-radius: 4px; overflow: hidden; }
+    .ind-bar { height: 100%; border-radius: 4px; transition: width .8s cubic-bezier(.4,0,.2,1); }
+    .ind-wr { font-family: var(--mono); font-size: 11px; min-width: 42px; text-align: right; font-weight: 600; }
+    .ind-weight { font-size: 10px; color: var(--muted); min-width: 30px; text-align: right; font-family: var(--mono); }
+
+    /* ── CONFIG PANEL ───────────────────────────────────────────────────── */
+    .config-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .config-item label { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; display: block; margin-bottom: 6px; }
+    .config-item .row { display: flex; align-items: center; gap: 10px; }
+    .config-item input[type=range] {
+      flex: 1; -webkit-appearance: none; height: 4px; background: var(--surface2); border-radius: 2px; outline: none;
+    }
+    .config-item input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none; width: 14px; height: 14px; border-radius: 50%;
+      background: var(--cyan); cursor: pointer; box-shadow: 0 0 6px rgba(0,212,255,.5);
+    }
+    .config-item .val-display {
+      font-family: var(--mono); font-size: 12px; font-weight: 700; color: var(--cyan);
+      min-width: 40px; text-align: right;
+    }
+    .config-section-title {
+      font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em;
+      color: var(--cyan); border-bottom: 1px solid var(--border); padding-bottom: 8px;
+      margin: 18px 0 12px; grid-column: 1 / -1;
+    }
+    .save-btn {
+      margin-top: 20px; padding: 10px 28px;
+      background: linear-gradient(135deg, var(--cyan), var(--blue));
+      border: none; border-radius: 8px; color: #000; font-weight: 700;
+      font-size: 13px; cursor: pointer; font-family: var(--font);
+      transition: opacity .2s;
+    }
+    .save-btn:hover { opacity: .85; }
+    .save-btn:disabled { opacity: .4; cursor: not-allowed; }
+    .save-msg { font-size: 12px; color: var(--green); margin-top: 8px; height: 18px; }
+
+    /* ── DIRECTION SPLIT ────────────────────────────────────────────────── */
+    .dir-split { display: flex; gap: 16px; }
+    .dir-split .side {
+      flex: 1; padding: 14px; background: var(--surface2); border-radius: 8px;
+      border: 1px solid var(--border); text-align: center;
+    }
+    .dir-split .side .pct { font-family: var(--mono); font-size: 30px; font-weight: 700; }
+    .dir-split .side .lbl { font-size: 11px; color: var(--muted); margin-top: 2px; }
+    .dir-split .side .n   { font-size: 11px; color: var(--muted); margin-top: 6px; font-family: var(--mono); }
+
+    /* ── ROLLING CHART ──────────────────────────────────────────────────── */
+    .chart-wrap { position: relative; height: 220px; }
+
+    /* ── OPEN CALLS ─────────────────────────────────────────────────────── */
+    .open-list { display: flex; flex-direction: column; gap: 6px; }
+    .open-item {
+      display: flex; align-items: center; gap: 10px; padding: 10px 12px;
+      background: var(--surface2); border-radius: 8px; font-size: 12px;
+      border: 1px solid rgba(0,212,255,.12);
+    }
+    .open-q { flex: 1; color: var(--muted); font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+    /* ── FILTER BREAKDOWN ───────────────────────────────────────────────── */
+    .filter-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px,1fr)); gap: 8px; }
+    .filter-card { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; text-align: center; }
+    .filter-card .fc-val { font-family: var(--mono); font-size: 22px; font-weight: 700; color: var(--text); }
+    .filter-card .fc-lbl { font-size: 10px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .04em; margin-top: 2px; }
+
+    /* ── RESPONSIVE ─────────────────────────────────────────────────────── */
+    @media (max-width: 900px) {
+      .grid-4 { grid-template-columns: repeat(2,1fr); }
+      .grid-3 { grid-template-columns: 1fr 1fr; }
+    }
+    @media (max-width: 640px) {
+      .grid-4, .grid-2, .grid-3 { grid-template-columns: 1fr; }
+      .config-grid { grid-template-columns: 1fr; }
+      .nav-links { display: none; }
+    }
+
+    /* ── SCROLLBAR ──────────────────────────────────────────────────────── */
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+  </style>
+</head>
+<body>
+
+<!-- ── NAV ────────────────────────────────────────────────────────────────── -->
+<nav>
+  <div class="inner">
+    <a class="nav-logo" href="/">
+      <img src="logo.png" alt="PMP" />
+      <span>Prediction Market Plug</span>
+    </a>
+    <ul class="nav-links" id="nav-links">
+      <li><a href="/leaderboard.html">Leaderboard</a></li>
+      <li><a href="/whales.html">Whale Tracker</a></li>
+      <li><a href="/graph.html">Graph</a></li>
+      <li><a href="/backtest.html">Backtest</a></li>
+      <li><a href="/wallet.html">Wallet</a></li>
+      <li><a href="/copy-trading.html">Copy Trading</a></li>
+      <li><a href="/btc.html" class="active">BTC Bot</a></li>
+    </ul>
+    <div class="live-badge">
+      <div class="dot"></div>
+      <span id="live-status">Live</span>
+    </div>
+  </div>
+</nav>
+
+<!-- ── PAGE ───────────────────────────────────────────────────────────────── -->
+<div class="page">
+
+  <div class="page-header">
+    <div>
+      <h1>⚡ BTC Advisory Bot</h1>
+      <p>Live signal feed · indicator performance · weight configuration</p>
+    </div>
+    <div class="epoch-tabs">
+      <button class="active" onclick="setEpoch('all',this)">All time</button>
+      <button onclick="setEpoch('rebalance',this)" id="rebalance-btn" style="display:none">Since rebalance</button>
+      <button onclick="setEpoch('today',this)">Today</button>
+    </div>
+  </div>
+
+  <!-- ── TOP STATS ──────────────────────────────────────────────────────── -->
+  <div class="grid-4" id="top-stats">
+    <div class="stat-card"><div class="label">Win Rate</div><div class="value" id="s-wr">—</div><div class="sub" id="s-settled">— settled</div></div>
+    <div class="stat-card"><div class="label">Total P&amp;L</div><div class="value" id="s-pnl">—</div><div class="sub" id="s-calls">— calls</div></div>
+    <div class="stat-card"><div class="label">Avg Confidence</div><div class="value cyan" id="s-conf">—</div><div class="sub">when fired</div></div>
+    <div class="stat-card"><div class="label">Open Calls</div><div class="value amber" id="s-open">—</div><div class="sub">tracking now</div></div>
+  </div>
+
+  <!-- ── TIMEFRAME + DIRECTION ROW ─────────────────────────────────────── -->
+  <div class="grid-2">
+    <!-- Timeframe breakdown -->
+    <div class="card">
+      <div class="card-title"><span class="icon">📊</span> Performance by Timeframe</div>
+      <table class="tf-table">
+        <thead><tr>
+          <th>TF</th><th>W / L</th><th>Win Rate</th><th>P&amp;L</th><th>Avg Conf</th>
+        </tr></thead>
+        <tbody id="tf-tbody">
+          <tr><td colspan="5" style="color:var(--muted);font-size:12px;padding:16px 0">Loading…</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Direction split + rolling win rate chart -->
+    <div class="card">
+      <div class="card-title"><span class="icon">🎯</span> UP vs DOWN Accuracy</div>
+      <div class="dir-split" id="dir-split" style="margin-bottom:16px">
+        <div class="side"><div class="pct green" id="dir-up-wr">—</div><div class="lbl">UP win rate</div><div class="n" id="dir-up-n">— calls</div></div>
+        <div class="side"><div class="pct red" id="dir-down-wr">—</div><div class="lbl">DOWN win rate</div><div class="n" id="dir-down-n">— calls</div></div>
+      </div>
+      <div class="card-title" style="margin-top:4px"><span class="icon">📈</span> Rolling Win Rate (last 50 calls)</div>
+      <div class="chart-wrap">
+        <canvas id="rolling-chart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── INDICATOR ACCURACY + LIVE FEED ────────────────────────────────── -->
+  <div class="grid-2">
+    <!-- Indicator accuracy -->
+    <div class="card" style="max-height:520px;overflow-y:auto">
+      <div class="card-title"><span class="icon">🔬</span> Indicator Accuracy (win rate when agreed)</div>
+      <div id="ind-list" class="ind-list">
+        <div style="color:var(--muted);font-size:12px">Loading…</div>
+      </div>
+    </div>
+
+    <!-- Live signal feed -->
+    <div class="card">
+      <div class="card-title"><span class="icon">⚡</span> Live Signal Feed <span style="margin-left:auto;font-size:10px;color:var(--muted);font-weight:400" id="feed-count"></span></div>
+      <div id="feed-list" class="feed-list">
+        <div style="color:var(--muted);font-size:12px">Waiting for signals…</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── FILTER BREAKDOWN + OPEN CALLS ─────────────────────────────────── -->
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title"><span class="icon">🚦</span> Signal Filter Breakdown</div>
+      <div id="filter-grid" class="filter-grid"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title"><span class="icon">🕐</span> Open Calls</div>
+      <div id="open-list" class="open-list">
+        <div style="color:var(--muted);font-size:12px">Loading…</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── CONFIG PANEL ───────────────────────────────────────────────────── -->
+  <div class="card" id="config-panel">
+    <div class="card-title"><span class="icon">⚙️</span> Weight &amp; Threshold Configuration
+      <span style="margin-left:auto;font-size:10px;color:var(--muted);font-weight:400">
+        Changes write to .env and hot-reload the bot
+      </span>
+    </div>
+    <div id="config-grid" class="config-grid">
+      <div style="color:var(--muted);font-size:12px;grid-column:1/-1">Loading config…</div>
+    </div>
+    <div style="display:flex;align-items:center;gap:16px;margin-top:16px">
+      <button class="save-btn" id="save-btn" onclick="saveConfig()">Save &amp; Reload Bot</button>
+      <div class="save-msg" id="save-msg"></div>
+    </div>
+  </div>
+
+</div><!-- /page -->
+
+<script>
+// ────────────────────────────────────────────────────────────────────────────
+// CONFIG
+// ────────────────────────────────────────────────────────────────────────────
+const API      = 'https://api.predictionmarketplug.com';
+const ADMIN_KEY = ''; // set via URL param ?ak=xxx for security — never hardcoded
+let   adminKey  = new URLSearchParams(location.search).get('ak') || '';
+
+// Epoch selector: 0 = all time, Date.now() at rebalance = since rebalance
+let currentSince = 0;
+let rebalanceTs  = 0;
+
+function setEpoch(mode, btn) {
+  document.querySelectorAll('.epoch-tabs button').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  if (mode === 'all')       currentSince = 0;
+  else if (mode === 'rebalance') currentSince = rebalanceTs;
+  else if (mode === 'today') {
+    const d = new Date(); d.setHours(0,0,0,0); currentSince = d.getTime();
+  }
+  loadPerformance();
+  loadIndicators();
+  loadSignals();
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// HELPERS
+// ────────────────────────────────────────────────────────────────────────────
+const fmt = {
+  pct:  v => v == null ? '—' : v.toFixed(1) + '%',
+  pnl:  v => v == null ? '—' : (v >= 0 ? '+' : '') + '$' + Math.abs(v).toFixed(0),
+  time: ts => { const d = new Date(ts); return d.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}); },
+};
+
+function wr_color(wr) {
+  if (wr == null) return 'var(--muted)';
+  if (wr >= 55)   return 'var(--green)';
+  if (wr >= 50)   return 'var(--cyan)';
+  if (wr >= 45)   return 'var(--amber)';
+  return 'var(--red)';
+}
+
+async function apiFetch(path) {
+  const r = await fetch(API + path);
+  if (!r.ok) throw new Error(r.statusText);
+  return r.json();
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// PERFORMANCE
+// ────────────────────────────────────────────────────────────────────────────
+let rollingChart = null;
+
+async function loadPerformance() {
+  try {
+    const d = await apiFetch(`/public/btc/performance?since=${currentSince}`);
+    const o = d.overall;
+    const settled = (o.wins || 0) + (o.losses || 0);
+    const wr = settled > 0 ? (o.wins / settled * 100) : null;
+
+    document.getElementById('s-wr').textContent   = fmt.pct(wr);
+    document.getElementById('s-wr').style.color   = wr_color(wr);
+    document.getElementById('s-settled').textContent = settled + ' settled';
+    document.getElementById('s-pnl').textContent  = fmt.pnl(o.total_pnl);
+    document.getElementById('s-pnl').style.color  = (o.total_pnl >= 0) ? 'var(--green)' : 'var(--red)';
+    document.getElementById('s-calls').textContent = (o.total || 0) + ' total';
+    document.getElementById('s-conf').textContent = fmt.pct(o.avg_conf);
+    document.getElementById('s-open').textContent = o.open_calls || 0;
+
+    // Timeframe table
+    const tbody = document.getElementById('tf-tbody');
+    if (!d.byTimeframe.length) {
+      tbody.innerHTML = '<tr><td colspan="5" style="color:var(--muted);font-size:12px;padding:16px 0">No settled calls in this period.</td></tr>';
+    } else {
+      tbody.innerHTML = d.byTimeframe.map(r => {
+        const wl = (r.wins || 0) + (r.losses || 0);
+        const rwr = wl > 0 ? r.wins / wl * 100 : null;
+        const fillColor = wr_color(rwr);
+        const fillW = rwr ? Math.min(rwr, 100) : 0;
+        return `<tr>
+          <td><span class="tf-badge">${r.timeframe}</span></td>
+          <td style="font-family:var(--mono);font-size:12px">${r.wins}/${r.losses}</td>
+          <td>
+            <div class="win-bar-wrap">
+              <div class="win-bar"><div class="win-bar-fill" style="width:${fillW}%;background:${fillColor}"></div></div>
+              <span style="font-family:var(--mono);font-size:12px;color:${fillColor};min-width:42px">${fmt.pct(rwr)}</span>
+            </div>
+          </td>
+          <td style="font-family:var(--mono);font-size:12px;color:${(r.pnl||0)>=0?'var(--green)':'var(--red)'}">${fmt.pnl(r.pnl)}</td>
+          <td style="font-family:var(--mono);font-size:12px;color:var(--muted)">${r.avg_conf}%</td>
+        </tr>`;
+      }).join('');
+    }
+
+    // Direction split
+    d.byDirection.forEach(r => {
+      const wl = (r.wins||0)+(r.losses||0);
+      const rwr = wl > 0 ? Math.round(r.wins/wl*1000)/10 : null;
+      if (r.direction === 'UP') {
+        document.getElementById('dir-up-wr').textContent  = fmt.pct(rwr);
+        document.getElementById('dir-up-wr').style.color  = wr_color(rwr);
+        document.getElementById('dir-up-n').textContent   = r.total + ' calls';
+      } else {
+        document.getElementById('dir-down-wr').textContent = fmt.pct(rwr);
+        document.getElementById('dir-down-wr').style.color = wr_color(rwr);
+        document.getElementById('dir-down-n').textContent  = r.total + ' calls';
+      }
+    });
+
+    // Rolling win rate chart (trailing 10-call window)
+    buildRollingChart(d.rolling);
+
+  } catch(e) { console.error('performance', e); }
+}
+
+function buildRollingChart(rows) {
+  if (!rows.length) return;
+  // Compute trailing 10-call win rate at each point
+  const points = rows.map((r, i) => {
+    const window = rows.slice(Math.max(0, i - 9), i + 1);
+    const wins   = window.filter(x => x.status === 'won').length;
+    return { x: r.called_at, y: Math.round(wins / window.length * 100) };
+  });
+
+  const ctx = document.getElementById('rolling-chart').getContext('2d');
+  if (rollingChart) rollingChart.destroy();
+
+  rollingChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      datasets: [{
+        data: points,
+        borderColor: '#00d4ff',
+        backgroundColor: 'rgba(0,212,255,0.08)',
+        borderWidth: 2,
+        pointRadius: 2,
+        pointHoverRadius: 5,
+        fill: true,
+        tension: 0.4,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false }, tooltip: {
+        callbacks: { label: ctx => `${ctx.parsed.y}% WR` }
+      }},
+      scales: {
+        x: { type: 'time', time: { unit: 'hour' },
+             grid: { color: 'rgba(255,255,255,.04)' },
+             ticks: { color: '#64748b', font: { size: 10 } } },
+        y: { min: 0, max: 100,
+             grid: { color: 'rgba(255,255,255,.04)' },
+             ticks: { color: '#64748b', font: { size: 10 },
+                      callback: v => v + '%' } }
+      }
+    }
+  });
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// INDICATORS
+// ────────────────────────────────────────────────────────────────────────────
+async function loadIndicators() {
+  try {
+    const d = await apiFetch(`/public/btc/indicators?since=${currentSince}`);
+    const el = document.getElementById('ind-list');
+
+    if (!d.indicators.length) {
+      el.innerHTML = '<div style="color:var(--muted);font-size:12px">No data yet.</div>';
+      return;
+    }
+
+    el.innerHTML = d.indicators.map(ind => {
+      const wr   = ind.winRateWhenAgree;
+      const col  = wr_color(wr);
+      const fill = wr ? Math.min(wr, 100) : 0;
+      const baseline = 50; // 50% = coin flip line
+      return `<div class="ind-row">
+        <div class="ind-name">${ind.name}</div>
+        <div class="ind-bar-wrap" title="WR: ${wr}%  n=${ind.agreeCount}">
+          <div class="ind-bar" style="width:${fill}%;background:${col}"></div>
+        </div>
+        <div class="ind-wr" style="color:${col}">${wr != null ? wr + '%' : '—'}</div>
+        <div class="ind-weight" title="Weight">${ind.weight}w</div>
+      </div>`;
+    }).join('');
+  } catch(e) { console.error('indicators', e); }
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// LIVE SIGNAL FEED
+// ────────────────────────────────────────────────────────────────────────────
+let feedSeen = new Set();
+
+async function loadSignals() {
+  try {
+    const since = Math.max(currentSince, Date.now() - 3 * 3600_000); // last 3h max
+    const d = await apiFetch(`/public/btc/signals?limit=60&since=${since}`);
+
+    // Filter breakdown
+    const fg = document.getElementById('filter-grid');
+    const LABELS = { fired:'Fired', confidence:'Confidence', trend_streak:'Trend Streak',
+                     trend_disagree:'Trend Disagree', trend_choppy:'Choppy',
+                     bb_flat:'BB Flat', cooldown:'Cooldown', open_call:'Open Call', llm_reject:'LLM Reject' };
+    fg.innerHTML = d.breakdown.map(b => `
+      <div class="filter-card">
+        <div class="fc-val" style="color:${b.reason==='fired'?'var(--cyan)':'var(--text)'}">${b.count}</div>
+        <div class="fc-lbl">${LABELS[b.reason]||b.reason}</div>
+      </div>`).join('');
+
+    // Feed
+    const feed = document.getElementById('feed-list');
+    const newItems = d.signals.filter(s => !feedSeen.has(s.id));
+
+    if (feedSeen.size === 0 && d.signals.length) {
+      // First load — render all
+      feed.innerHTML = '';
+      d.signals.forEach(s => { feedSeen.add(s.id); appendFeedItem(feed, s, false); });
+    } else {
+      // Subsequent polls — prepend new items
+      newItems.forEach(s => { feedSeen.add(s.id); prependFeedItem(feed, s); });
+    }
+
+    document.getElementById('feed-count').textContent = d.signals.length + ' signals';
+  } catch(e) { console.error('signals', e); }
+}
+
+function feedItemHtml(s, isNew) {
+  const fired   = !s.blocked_by;
+  const dir     = s.direction.toLowerCase();
+  const blocked = s.blocked_by || 'fired';
+  const confCol = s.confidence >= 60 ? 'var(--cyan)' : s.confidence >= 50 ? 'var(--text)' : 'var(--muted)';
+  return `<div class="feed-item ${fired?'fired':'blocked'} ${isNew?'new':''}">
+    <span class="feed-time">${fmt.time(s.ts)}</span>
+    <span class="tf-pill">${s.timeframe}</span>
+    <span class="dir-badge ${dir}">${s.direction}</span>
+    <span class="conf-val" style="color:${confCol}">${s.confidence}%</span>
+    <span style="font-size:11px;color:var(--muted);flex:1">${s.regime||''}</span>
+    <span class="block-tag ${fired?'fired':''}">${fired?'FIRED':blocked}</span>
+  </div>`;
+}
+function appendFeedItem(el, s, isNew) { el.insertAdjacentHTML('beforeend', feedItemHtml(s,isNew)); }
+function prependFeedItem(el, s) {
+  el.insertAdjacentHTML('afterbegin', feedItemHtml(s,true));
+  // Cap at 80 items
+  while (el.children.length > 80) el.removeChild(el.lastChild);
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// LIVE (open calls + latest signal)
+// ────────────────────────────────────────────────────────────────────────────
+async function loadLive() {
+  try {
+    const d = await apiFetch('/public/btc/live');
+    const ol = document.getElementById('open-list');
+    if (!d.openCalls.length) {
+      ol.innerHTML = '<div style="color:var(--muted);font-size:12px;padding:8px 0">No open calls right now.</div>';
+    } else {
+      ol.innerHTML = d.openCalls.map(c => {
+        const age = Math.round((Date.now() - c.called_at) / 60000);
+        return `<div class="open-item">
+          <span class="tf-pill">${c.timeframe}</span>
+          <span class="dir-badge ${c.direction.toLowerCase()}">${c.direction}</span>
+          <span style="font-family:var(--mono);font-size:12px;color:var(--cyan)">${c.confidence}%</span>
+          <span class="open-q">${c.question}</span>
+          <span style="font-size:10px;color:var(--muted);font-family:var(--mono)">${age}m ago</span>
+        </div>`;
+      }).join('');
+    }
+  } catch(e) {}
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// CONFIG PANEL
+// ────────────────────────────────────────────────────────────────────────────
+let liveConfig = null;
+
+const WEIGHT_META = {
+  // Trend-following (good)
+  BTC_WEIGHT_PRICE_VS_MA20:  { label: 'Price vs MA20',   group: 'trend' },
+  BTC_WEIGHT_MA_CROSS:       { label: 'MA Cross',        group: 'trend' },
+  BTC_WEIGHT_EMA_CROSS:      { label: 'EMA Cross',       group: 'trend' },
+  BTC_WEIGHT_MACD:           { label: 'MACD',            group: 'trend' },
+  BTC_WEIGHT_MACD_HIST:      { label: 'MACD Hist Slope', group: 'trend' },
+  BTC_WEIGHT_MOMENTUM:       { label: 'Momentum',        group: 'trend' },
+  BTC_WEIGHT_MA_SLOPE:       { label: 'MA Slope',        group: 'trend' },
+  BTC_WEIGHT_OBV:            { label: 'OBV',             group: 'trend' },
+  BTC_WEIGHT_MA_STACK:       { label: 'MA Stack',        group: 'trend' },
+  // Mean-reversion (use sparingly)
+  BTC_WEIGHT_RSI:            { label: 'RSI',             group: 'reversion' },
+  BTC_WEIGHT_BOLLINGER:      { label: 'Bollinger',       group: 'reversion' },
+  BTC_WEIGHT_STOCHASTIC:     { label: 'Stochastic',      group: 'reversion' },
+  BTC_WEIGHT_CCI:            { label: 'CCI',             group: 'reversion' },
+  BTC_WEIGHT_WILLIAMS_R:     { label: 'Williams %R',     group: 'reversion' },
+  BTC_WEIGHT_ZSCORE:         { label: 'Z-Score',         group: 'reversion' },
+  BTC_WEIGHT_MRO:            { label: 'MRO Oscillator',  group: 'reversion' },
+  // Context
+  BTC_WEIGHT_VWAP:           { label: 'VWAP Dev',        group: 'context' },
+  BTC_WEIGHT_HTF_TREND:      { label: 'HTF Trend',       group: 'context' },
+  BTC_WEIGHT_MTF:            { label: 'MTF RSI Align',   group: 'context' },
+  BTC_WEIGHT_SENTIMENT:      { label: 'Sentiment',       group: 'context' },
+  BTC_WEIGHT_FEAR_GREED:     { label: 'Fear & Greed',    group: 'context' },
+  BTC_WEIGHT_VOLATILITY:     { label: 'Volatility',      group: 'context' },
+  BTC_WEIGHT_FUNDING:        { label: 'Funding Rate',    group: 'context' },
+  BTC_WEIGHT_OVERNIGHT_GAP:  { label: 'Overnight Gap',   group: 'context' },
+  BTC_WEIGHT_ABNORMAL_VOL:   { label: 'Abnormal Volume', group: 'context' },
+};
+
+const GROUP_LABELS = {
+  trend:     '📈 Trend-Following',
+  reversion: '🔄 Mean-Reversion',
+  context:   '🌐 Context / Secondary',
+};
+
+async function loadConfig() {
+  try {
+    const d = await apiFetch('/public/btc/config');
+    liveConfig = d;
+
+    // Show rebalance epoch button if set
+    if (d.rebalanceTs > 0) {
+      rebalanceTs = d.rebalanceTs;
+      document.getElementById('rebalance-btn').style.display = '';
+    }
+
+    const grid = document.getElementById('config-grid');
+    let html = '';
+
+    // Weight sliders grouped
+    const groups = ['trend','reversion','context'];
+    for (const grp of groups) {
+      html += `<div class="config-section-title">${GROUP_LABELS[grp]}</div>`;
+      for (const [envKey, meta] of Object.entries(WEIGHT_META)) {
+        if (meta.group !== grp) continue;
+        const val = d.weights[envKey] ?? 0.05;
+        const pct = Math.round(val * 100);
+        html += `<div class="config-item">
+          <label>${meta.label}</label>
+          <div class="row">
+            <input type="range" min="0" max="0.30" step="0.01"
+              value="${val}" data-key="${envKey}"
+              oninput="this.nextElementSibling.textContent=Math.round(this.value*100)+'%'">
+            <span class="val-display">${pct}%</span>
+          </div>
+        </div>`;
+      }
+    }
+
+    // Confidence thresholds
+    html += `<div class="config-section-title">🎯 Confidence Thresholds</div>`;
+    const confTfs = [
+      ['default','All TF default', d.minConfidence.default],
+      ['5m',     '5m',              d.minConfidence['5m']],
+      ['15m',    '15m',             d.minConfidence['15m']],
+      ['1h',     '1h',              d.minConfidence['1h']],
+      ['4h',     '4h',              d.minConfidence['4h']],
+    ];
+    for (const [tf, label, val] of confTfs) {
+      html += `<div class="config-item">
+        <label>Min confidence — ${label}</label>
+        <div class="row">
+          <input type="range" min="0.30" max="0.90" step="0.01"
+            value="${val}" data-conf="${tf}"
+            oninput="this.nextElementSibling.textContent=Math.round(this.value*100)+'%'">
+          <span class="val-display">${Math.round(val*100)}%</span>
+        </div>
+      </div>`;
+    }
+
+    // BB ATR + Kelly
+    html += `<div class="config-section-title">🛡️ Gates &amp; Sizing</div>`;
+    html += `<div class="config-item">
+      <label>BB / ATR Volatility Gate</label>
+      <div class="row">
+        <input type="range" min="0.2" max="2.0" step="0.05"
+          value="${d.bbAtrRatio}" data-misc="bbAtrRatio"
+          oninput="this.nextElementSibling.textContent=parseFloat(this.value).toFixed(2)">
+        <span class="val-display">${d.bbAtrRatio.toFixed(2)}</span>
+      </div>
+    </div>`;
+    html += `<div class="config-item">
+      <label>Kelly Fraction</label>
+      <div class="row">
+        <input type="range" min="0.05" max="1.0" step="0.05"
+          value="${d.kellyFraction}" data-misc="kellyFraction"
+          oninput="this.nextElementSibling.textContent=Math.round(this.value*100)+'%'">
+        <span class="val-display">${Math.round(d.kellyFraction*100)}%</span>
+      </div>
+    </div>`;
+
+    grid.innerHTML = html;
+  } catch(e) { console.error('config', e); }
+}
+
+async function saveConfig() {
+  if (!adminKey) {
+    const k = prompt('Enter admin key:');
+    if (!k) return;
+    adminKey = k;
+  }
+
+  const btn = document.getElementById('save-btn');
+  const msg = document.getElementById('save-msg');
+  btn.disabled = true;
+  msg.textContent = 'Saving…';
+  msg.style.color = 'var(--muted)';
+
+  try {
+    const weights = {};
+    document.querySelectorAll('input[data-key]').forEach(el => {
+      weights[el.dataset.key] = parseFloat(el.value);
+    });
+    const minConfidence = {};
+    document.querySelectorAll('input[data-conf]').forEach(el => {
+      minConfidence[el.dataset.conf] = parseFloat(el.value);
+    });
+    let bbAtrRatio = null, kellyFraction = null;
+    const bbEl = document.querySelector('input[data-misc="bbAtrRatio"]');
+    const kfEl = document.querySelector('input[data-misc="kellyFraction"]');
+    if (bbEl) bbAtrRatio = parseFloat(bbEl.value);
+    if (kfEl) kellyFraction = parseFloat(kfEl.value);
+
+    const r = await fetch(API + '/admin/btc/config', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Admin-Key': adminKey },
+      body: JSON.stringify({ weights, minConfidence, bbAtrRatio, kellyFraction }),
+    });
+
+    if (!r.ok) throw new Error(await r.text());
+    const result = await r.json();
+    msg.textContent = '✓ ' + result.message;
+    msg.style.color = 'var(--green)';
+    // Reload config display after 3s
+    setTimeout(loadConfig, 3000);
+  } catch(e) {
+    msg.textContent = '✗ ' + e.message;
+    msg.style.color = 'var(--red)';
+    if (e.message.includes('401') || e.message.includes('403')) adminKey = '';
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// INIT + POLLING
+// ────────────────────────────────────────────────────────────────────────────
+async function init() {
+  await loadConfig();
+  await Promise.all([loadPerformance(), loadIndicators(), loadSignals(), loadLive()]);
+}
+
+init();
+
+// Poll: live feed every 10s, performance every 60s, indicators every 5min
+setInterval(loadSignals,   10_000);
+setInterval(loadLive,      10_000);
+setInterval(loadPerformance, 60_000);
+setInterval(loadIndicators, 300_000);
+</script>
+</body>
+</html>
