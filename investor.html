@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <!-- ── Beta password gate ────────────────────────────────────────────────── -->
+  <script>
+  (function(){
+    var COOKIE='pmp_beta_auth', PASS='polymarket2026', DAYS=7;
+    function getCookie(n){var m=document.cookie.match('(^|;)\\s*'+n+'\\s*=\\s*([^;]+)');return m?m.pop():'';}
+    if(getCookie(COOKIE)===PASS)return;
+    document.documentElement.style.visibility='hidden';
+    window.addEventListener('DOMContentLoaded',function(){
+      document.documentElement.style.visibility='';
+      var d=document.createElement('div');
+      d.innerHTML='<div style="position:fixed;inset:0;background:#0a0c10;display:flex;align-items:center;justify-content:center;z-index:99999;font-family:system-ui,sans-serif"><div style="background:#111318;border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:40px;width:320px;text-align:center"><div style="font-size:22px;font-weight:700;color:#e2e8f0;margin-bottom:6px">PredictionMarketPlug</div><div style="font-size:13px;color:#64748b;margin-bottom:24px">Beta — enter password to continue</div><input id="_pw_in" type="password" placeholder="Password" style="width:100%;padding:11px 14px;background:#1f2433;border:1px solid rgba(255,255,255,.1);border-radius:8px;color:#e2e8f0;font-size:14px;outline:none;box-sizing:border-box;margin-bottom:10px" /><div id="_pw_err" style="color:#ef4444;font-size:12px;min-height:18px;margin-bottom:10px"></div><button id="_pw_btn" style="width:100%;padding:11px;background:#00d4ff;color:#000;font-weight:700;font-size:14px;border:none;border-radius:8px;cursor:pointer">Enter</button></div></div>';
+      document.body.prepend(d);
+      function attempt(){
+        var v=document.getElementById('_pw_in').value;
+        if(v===PASS){var e=new Date();e.setDate(e.getDate()+DAYS);document.cookie=COOKIE+'='+PASS+';expires='+e.toUTCString()+';path=/;SameSite=Strict';d.remove();}
+        else{document.getElementById('_pw_err').textContent='Incorrect password';document.getElementById('_pw_in').value='';document.getElementById('_pw_in').focus();}
+      }
+      document.getElementById('_pw_btn').onclick=attempt;
+      document.getElementById('_pw_in').onkeydown=function(e){if(e.key==='Enter')attempt();};
+      document.getElementById('_pw_in').focus();
+    });
+  })();
+  </script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Investor Overview — Prediction Market Plug</title>
+  <meta name="description" content="Platform metrics, signal accuracy, and data flywheel overview for Prediction Market Plug." />
+  <meta property="og:title" content="Investor Overview — Prediction Market Plug" />
+  <meta property="og:image" content="https://predictionmarketplug.com/og-image.png" />
+
+  <link rel="icon" type="image/png" href="logo.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --cyan:   #00d4ff;
+      --blue:   #3b6ef8;
+      --purple: #8b5cf6;
+      --green:  #22c55e;
+      --red:    #ef4444;
+      --amber:  #f59e0b;
+      --gold:   #ffd700;
+      --dark:   #06080f;
+      --dark2:  #0d1117;
+      --dark3:  #111827;
+      --surface: #0d1117;
+      --surface2: #111827;
+      --border: rgba(0,212,255,0.12);
+      --text:   #e2e8f0;
+      --muted:  #64748b;
+      --font:   'Space Grotesk', sans-serif;
+      --mono:   'JetBrains Mono', monospace;
+    }
+
+    html { scroll-behavior: smooth; }
+    body { font-family: var(--font); background: var(--dark); color: var(--text); overflow-x: hidden; line-height: 1.6; min-height: 100vh; }
+
+    /* ── GRID TEXTURE ── */
+    body::after {
+      content: '';
+      position: fixed; inset: 0;
+      background-image: linear-gradient(rgba(0,212,255,0.025) 1px,transparent 1px),linear-gradient(90deg,rgba(0,212,255,0.025) 1px,transparent 1px);
+      background-size: 60px 60px;
+      pointer-events: none; z-index: 0;
+    }
+
+    /* ── NAV ── */
+    nav {
+      position: sticky; top: 0; z-index: 200;
+      height: 56px; display: flex; align-items: center;
+      padding: 0 24px; justify-content: space-between;
+      background: rgba(6,8,15,0.96); backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--border);
+    }
+    .nav-logo { display:flex; align-items:center; gap:8px; text-decoration:none; color:var(--text); }
+    .nav-logo img { width:26px; filter:drop-shadow(0 0 6px rgba(0,212,255,0.6)); }
+    .nav-logo span { font-weight:600; font-size:14px; }
+    .nav-links { display:flex; align-items:center; gap:4px; list-style:none; }
+    .nav-links a { color:var(--muted); text-decoration:none; font-size:13px; font-weight:500; padding:5px 10px; border-radius:6px; transition:color .15s,background .15s; }
+    .nav-links a:hover { color:var(--text); background:rgba(255,255,255,.05); }
+    .nav-links a.active { color:var(--cyan); background:rgba(0,212,255,.08); }
+    .nav-cta { background:var(--cyan); color:#000; font-weight:700; font-size:13px; padding:7px 16px; border-radius:8px; text-decoration:none; white-space:nowrap; transition:opacity .2s; }
+    .nav-cta:hover { opacity:.85; }
+    .hamburger { display:none; background:none; border:none; cursor:pointer; color:var(--text); padding:4px; }
+    @media (max-width:860px) {
+      .hamburger { display:block; }
+      .nav-links { display:none; position:absolute; top:56px; left:0; right:0; background:var(--dark2); border-bottom:1px solid var(--border); flex-direction:column; align-items:flex-start; gap:2px; padding:10px 16px; }
+      .nav-links.open { display:flex; }
+      .nav-links a { width:100%; }
+      .nav-cta { display:none; }
+    }
+
+    /* ── LAYOUT ── */
+    .page { max-width: 1100px; margin: 0 auto; padding: 48px 24px 80px; position:relative; z-index:1; }
+
+    /* ── HERO ── */
+    .hero { text-align:center; margin-bottom:64px; }
+    .hero-badge {
+      display:inline-flex; align-items:center; gap:6px;
+      background:rgba(0,212,255,0.08); border:1px solid rgba(0,212,255,0.2);
+      border-radius:20px; padding:5px 14px; font-size:12px; font-weight:600;
+      color:var(--cyan); letter-spacing:.04em; text-transform:uppercase; margin-bottom:20px;
+    }
+    .hero-badge span { width:6px; height:6px; background:var(--cyan); border-radius:50%; animation:pulse 2s infinite; }
+    @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.5;transform:scale(1.4)} }
+    .hero h1 { font-size:clamp(2.2rem,5vw,3.8rem); font-weight:700; line-height:1.15; margin-bottom:16px; }
+    .hero h1 em { font-style:normal; background:linear-gradient(135deg,var(--cyan),var(--purple)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+    .hero p { color:var(--muted); font-size:1.1rem; max-width:620px; margin:0 auto 32px; }
+    .hero-links { display:flex; align-items:center; justify-content:center; gap:12px; flex-wrap:wrap; }
+    .btn { display:inline-flex; align-items:center; gap:6px; padding:10px 22px; border-radius:8px; font-size:14px; font-weight:600; text-decoration:none; transition:opacity .2s,transform .15s; }
+    .btn:hover { opacity:.85; transform:translateY(-1px); }
+    .btn-primary { background:var(--cyan); color:#000; }
+    .btn-outline { border:1px solid rgba(0,212,255,0.3); color:var(--cyan); }
+
+    /* ── KPI GRID ── */
+    .kpi-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:16px; margin-bottom:48px; }
+    .kpi {
+      background:var(--surface); border:1px solid var(--border); border-radius:12px;
+      padding:20px 22px; position:relative; overflow:hidden;
+    }
+    .kpi::before {
+      content:''; position:absolute; top:0; left:0; right:0; height:2px;
+      background:linear-gradient(90deg,transparent,var(--accent,var(--cyan)),transparent);
+    }
+    .kpi-label { font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); margin-bottom:8px; }
+    .kpi-value { font-size:1.9rem; font-weight:700; color:var(--text); font-family:var(--mono); }
+    .kpi-sub { font-size:11px; color:var(--muted); margin-top:4px; }
+
+    /* ── SECTION ── */
+    .section { margin-bottom:56px; }
+    .section-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:20px; flex-wrap:wrap; gap:8px; }
+    .section-title { font-size:1.25rem; font-weight:700; display:flex; align-items:center; gap:10px; }
+    .section-title svg { opacity:.7; }
+    .section-desc { font-size:13px; color:var(--muted); max-width:500px; }
+    .section-link { font-size:13px; color:var(--cyan); text-decoration:none; opacity:.8; }
+    .section-link:hover { opacity:1; }
+
+    /* ── CHART CARD ── */
+    .chart-card { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:24px; }
+    .chart-wrap { position:relative; height:240px; }
+
+    /* ── TWO-COL ── */
+    .two-col { display:grid; grid-template-columns:1fr 1fr; gap:20px; }
+    @media (max-width:700px) { .two-col { grid-template-columns:1fr; } }
+
+    /* ── SIGNAL TYPE TABLE ── */
+    .signal-table { width:100%; border-collapse:collapse; font-size:13px; }
+    .signal-table th { text-align:left; color:var(--muted); font-weight:600; font-size:11px; text-transform:uppercase; letter-spacing:.05em; padding:8px 12px; border-bottom:1px solid var(--border); }
+    .signal-table td { padding:10px 12px; border-bottom:1px solid rgba(255,255,255,.04); }
+    .signal-table tr:last-child td { border-bottom:none; }
+    .acc-bar { display:flex; align-items:center; gap:8px; }
+    .acc-track { flex:1; height:5px; background:rgba(255,255,255,.07); border-radius:3px; overflow:hidden; }
+    .acc-fill { height:100%; border-radius:3px; background:linear-gradient(90deg,var(--cyan),var(--purple)); }
+    .badge { display:inline-block; padding:2px 8px; border-radius:4px; font-size:11px; font-weight:600; font-family:var(--mono); }
+    .badge-green { background:rgba(34,197,94,.12); color:var(--green); }
+    .badge-cyan  { background:rgba(0,212,255,.12);  color:var(--cyan); }
+    .badge-amber { background:rgba(245,158,11,.12); color:var(--amber); }
+
+    /* ── CAPABILITIES ── */
+    .caps-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:16px; }
+    .cap-card { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:20px; }
+    .cap-icon { font-size:1.5rem; margin-bottom:10px; }
+    .cap-title { font-size:14px; font-weight:700; margin-bottom:6px; }
+    .cap-desc { font-size:13px; color:var(--muted); line-height:1.5; }
+
+    /* ── NARRATIVE TIMELINE ── */
+    .timeline { list-style:none; padding:0; position:relative; }
+    .timeline::before { content:''; position:absolute; left:20px; top:0; bottom:0; width:1px; background:linear-gradient(180deg,var(--cyan),var(--purple),transparent); opacity:.3; }
+    .tl-item { display:flex; gap:20px; padding:0 0 32px 0; position:relative; }
+    .tl-dot { flex-shrink:0; width:40px; height:40px; border-radius:50%; background:var(--surface); border:1px solid var(--border); display:flex; align-items:center; justify-content:center; font-size:1.1rem; z-index:1; }
+    .tl-body h3 { font-size:15px; font-weight:700; margin-bottom:4px; }
+    .tl-body p { font-size:13px; color:var(--muted); line-height:1.5; }
+
+    /* ── STAT ROW ── */
+    .stat-row { display:flex; gap:8px; flex-wrap:wrap; }
+    .stat-pill { background:rgba(0,212,255,.06); border:1px solid rgba(0,212,255,.15); border-radius:20px; padding:4px 12px; font-size:12px; font-weight:600; color:var(--cyan); font-family:var(--mono); }
+  </style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <a href="/" class="nav-logo">
+    <img src="logo.png" alt="PMP" />
+    <span>PredictionMarketPlug</span>
+  </a>
+  <button class="hamburger" id="hamburger" aria-label="Menu">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+  </button>
+  <ul class="nav-links" id="nav-links">
+    <li><a href="/">Overview</a></li>
+    <li><a href="/leaderboard.html">Leaderboard</a></li>
+    <li><a href="/whales.html">Whale Tracker</a></li>
+    <li><a href="/graph.html">Network</a></li>
+    <li><a href="/signals.html">Signals</a></li>
+    <li><a href="/copy-trading.html">Copy Trading</a></li>
+    <li><a href="/dataset.html">Dataset</a></li>
+    <li><a href="/investor.html" class="active">Investor</a></li>
+  </ul>
+  <a href="https://whop.com/prediction-market-plug/" target="_blank" class="nav-cta">Join Pro →</a>
+</nav>
+
+<div class="page">
+
+  <!-- ── HERO ── -->
+  <div class="hero">
+    <div class="hero-badge"><span></span>Platform Intelligence Overview</div>
+    <h1>The <em>Data Layer</em> for<br>Prediction Markets</h1>
+    <p>We don't just trade. We instrument every market, wallet, and signal on Polymarket — building the richest proprietary dataset in prediction market history.</p>
+    <div class="hero-links">
+      <a href="/signals.html" class="btn btn-primary">View Signal Calibration →</a>
+      <a href="/dataset.html" class="btn btn-outline">Dataset Growth →</a>
+    </div>
+  </div>
+
+  <!-- ── HEADLINE KPIs ── -->
+  <div class="kpi-grid" id="kpi-grid">
+    <div class="kpi" style="--accent:var(--cyan)">
+      <div class="kpi-label">Signals Collected</div>
+      <div class="kpi-value" id="kpi-signals">—</div>
+      <div class="kpi-sub" id="kpi-signals-sub">with outcome labels</div>
+    </div>
+    <div class="kpi" style="--accent:var(--green)">
+      <div class="kpi-label">Signal Accuracy</div>
+      <div class="kpi-value" id="kpi-accuracy">—</div>
+      <div class="kpi-sub" id="kpi-accuracy-sub">on evaluated signals</div>
+    </div>
+    <div class="kpi" style="--accent:var(--purple)">
+      <div class="kpi-label">Wallets Tracked</div>
+      <div class="kpi-value" id="kpi-wallets">—</div>
+      <div class="kpi-sub">with full trade history</div>
+    </div>
+    <div class="kpi" style="--accent:var(--amber)">
+      <div class="kpi-label">Smart Money Wallets</div>
+      <div class="kpi-value" id="kpi-smart">—</div>
+      <div class="kpi-sub">&gt;60% win rate, ≥10 trades</div>
+    </div>
+    <div class="kpi" style="--accent:var(--cyan)">
+      <div class="kpi-label">Markets Indexed</div>
+      <div class="kpi-value" id="kpi-markets">—</div>
+      <div class="kpi-sub">active + resolved</div>
+    </div>
+    <div class="kpi" style="--accent:var(--green)">
+      <div class="kpi-label">Resolutions Stored</div>
+      <div class="kpi-value" id="kpi-resolutions">—</div>
+      <div class="kpi-sub">ground-truth labels</div>
+    </div>
+  </div>
+
+  <!-- ── SIGNAL ACCURACY CHART + TOP TYPES ── -->
+  <div class="section">
+    <div class="section-header">
+      <div>
+        <div class="section-title">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--cyan)" stroke-width="2"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>
+          Signal Calibration
+        </div>
+        <div class="section-desc">Predicted confidence vs actual accuracy — a well-calibrated model is the foundation of systematic edge.</div>
+      </div>
+      <a href="/signals.html" class="section-link">Full analysis →</a>
+    </div>
+    <div class="two-col">
+      <div class="chart-card">
+        <div style="font-size:12px;color:var(--muted);margin-bottom:14px;font-weight:600;text-transform:uppercase;letter-spacing:.05em">Calibration Curve — Predicted vs Actual</div>
+        <div class="chart-wrap"><canvas id="calibration-chart"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div style="font-size:12px;color:var(--muted);margin-bottom:14px;font-weight:600;text-transform:uppercase;letter-spacing:.05em">Top Signal Types by Accuracy</div>
+        <table class="signal-table" id="signal-table">
+          <thead><tr><th>Signal Type</th><th>Accuracy</th><th>Samples</th></tr></thead>
+          <tbody><tr><td colspan="3" style="color:var(--muted);text-align:center;padding:20px">Loading…</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── DATASET GROWTH CHART ── -->
+  <div class="section">
+    <div class="section-header">
+      <div>
+        <div class="section-title">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--purple)" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          Data Flywheel — Cumulative Growth
+        </div>
+        <div class="section-desc">Every resolved market adds ground-truth labels. Every new wallet adds behavioural data. The dataset compounds.</div>
+      </div>
+      <a href="/dataset.html" class="section-link">Full growth charts →</a>
+    </div>
+    <div class="chart-card">
+      <div class="chart-wrap" style="height:260px"><canvas id="growth-chart"></canvas></div>
+    </div>
+  </div>
+
+  <!-- ── CAPABILITIES ── -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-title">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--amber)" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+        Platform Capabilities
+      </div>
+    </div>
+    <div class="caps-grid">
+      <div class="cap-card">
+        <div class="cap-icon">🐋</div>
+        <div class="cap-title">Whale Intelligence</div>
+        <div class="cap-desc">Track 796+ wallets in real time. Classify as smart money, suspicious, or losing. Score every trade for pattern extraction.</div>
+      </div>
+      <div class="cap-card">
+        <div class="cap-icon">🕸️</div>
+        <div class="cap-title">Coordination Graph</div>
+        <div class="cap-desc">Detect coordinated wallets via union-find + binomial p-value. Identifies suspected insider clusters before resolution.</div>
+      </div>
+      <div class="cap-card">
+        <div class="cap-icon">📡</div>
+        <div class="cap-title">3.75M+ Signal Events</div>
+        <div class="cap-desc">Every price move, volume surge, odds shift, and whale entry is scored, labelled after resolution, and used for model training.</div>
+      </div>
+      <div class="cap-card">
+        <div class="cap-icon">🤖</div>
+        <div class="cap-title">BTC Advisory Bot</div>
+        <div class="cap-desc">38-indicator TA engine, self-tuning weights, Monte Carlo ensemble. 50%+ win rate on directional BTC prediction markets.</div>
+      </div>
+      <div class="cap-card">
+        <div class="cap-icon">📊</div>
+        <div class="cap-title">Self-Calibrating Model</div>
+        <div class="cap-desc">SignalScoringService updates confidence weights daily as markets resolve. Accuracy improves monotonically with data volume.</div>
+      </div>
+      <div class="cap-card">
+        <div class="cap-icon">⚡</div>
+        <div class="cap-title">Copy &amp; Fade Trading</div>
+        <div class="cap-desc">Automated execution mirroring top wallets (copy) or fading the worst (fade). Positions open within seconds of whale activity.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── THE NARRATIVE ── -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-title">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--cyan)" stroke-width="2"><path d="M12 22C6.477 22 2 17.523 2 12S6.477 2 12 2s10 4.477 10 10-4.477 10-10 10z"/><path d="M12 6v6l4 2"/></svg>
+        The Story
+      </div>
+    </div>
+    <ul class="timeline">
+      <li class="tl-item">
+        <div class="tl-dot">💬</div>
+        <div class="tl-body">
+          <h3>Discord as a Growth Engine</h3>
+          <p>A paying Discord community (Free / Pro / Gold tiers) provides capital and user feedback. Revenue funds infrastructure and validates product-market fit while the dataset is being built.</p>
+        </div>
+      </li>
+      <li class="tl-item">
+        <div class="tl-dot">📦</div>
+        <div class="tl-body">
+          <h3>Proprietary Dataset as the Moat</h3>
+          <p>The real asset is not the trading bot — it's the enriched, labelled prediction-market dataset: 3.75M+ signal events, 796 wallet behavioural profiles, 97K+ markets, all timestamped and outcome-labelled.</p>
+        </div>
+      </li>
+      <li class="tl-item">
+        <div class="tl-dot">🧠</div>
+        <div class="tl-body">
+          <h3>Self-Improving Model</h3>
+          <p>Every resolved market is a ground-truth label. The signal scoring model retrains continuously. Calibration curves improve every week — this is a compounding data flywheel.</p>
+        </div>
+      </li>
+      <li class="tl-item">
+        <div class="tl-dot">🚀</div>
+        <div class="tl-body">
+          <h3>Expansion to Institutional Intelligence</h3>
+          <p>The long-term play: license the dataset, the API, and the trained models to hedge funds, market-makers, and prediction-market protocol teams who need calibrated event-outcome intelligence.</p>
+        </div>
+      </li>
+    </ul>
+  </div>
+
+  <!-- ── QUICK LINKS ── -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-title">Explore the Platform</div>
+    </div>
+    <div class="caps-grid">
+      <a href="/signals.html" style="text-decoration:none">
+        <div class="cap-card" style="border-color:rgba(0,212,255,.2);cursor:pointer;transition:border-color .2s">
+          <div class="cap-icon">📈</div>
+          <div class="cap-title" style="color:var(--cyan)">Signal Calibration</div>
+          <div class="cap-desc">Confidence vs accuracy curves, Wilson CI error bars, top signal types.</div>
+        </div>
+      </a>
+      <a href="/dataset.html" style="text-decoration:none">
+        <div class="cap-card" style="border-color:rgba(139,92,246,.2);cursor:pointer;transition:border-color .2s">
+          <div class="cap-icon">📊</div>
+          <div class="cap-title" style="color:var(--purple)">Dataset Growth</div>
+          <div class="cap-desc">Monthly cumulative growth of every dataset table. The flywheel in numbers.</div>
+        </div>
+      </a>
+      <a href="/graph.html" style="text-decoration:none">
+        <div class="cap-card" style="border-color:rgba(245,158,11,.2);cursor:pointer;transition:border-color .2s">
+          <div class="cap-icon">🕸️</div>
+          <div class="cap-title" style="color:var(--amber)">Coordination Graph</div>
+          <div class="cap-desc">Live force-directed graph of wallet clusters, insider detection, smart money mapping.</div>
+        </div>
+      </a>
+      <a href="/copy-trading.html" style="text-decoration:none">
+        <div class="cap-card" style="border-color:rgba(34,197,94,.2);cursor:pointer;transition:border-color .2s">
+          <div class="cap-icon">⚡</div>
+          <div class="cap-title" style="color:var(--green)">Copy / Fade Trading</div>
+          <div class="cap-desc">Risk-adjusted P&amp;L, Sharpe ratio, max drawdown, and fade-the-losers backtest.</div>
+        </div>
+      </a>
+    </div>
+  </div>
+
+</div><!-- /page -->
+
+<script>
+const API = (location.hostname === 'localhost' || location.hostname === '127.0.0.1')
+  ? 'http://127.0.0.1:4001'
+  : 'https://api.predictionmarketplug.com';
+
+/** Format large numbers: 3759150 → 3.75M */
+function fmtNum(n) {
+  if (n == null) return '—';
+  if (n >= 1e9) return (n / 1e9).toFixed(2) + 'B';
+  if (n >= 1e6) return (n / 1e6).toFixed(2) + 'M';
+  if (n >= 1e3) return (n / 1e3).toFixed(0) + 'K';
+  return String(n);
+}
+
+function esc(s) {
+  return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ── Load investor summary KPIs ────────────────────────────────────────────
+async function loadSummary() {
+  try {
+    const d = await fetch(`${API}/public/investor/summary`).then(r => r.json());
+    document.getElementById('kpi-signals').textContent     = fmtNum(d.signalCount);
+    document.getElementById('kpi-signals-sub').textContent = fmtNum(d.signalEvaluated) + ' outcome-labelled';
+    document.getElementById('kpi-accuracy').textContent    = d.signalAccuracy != null ? d.signalAccuracy.toFixed(1) + '%' : '—';
+    document.getElementById('kpi-accuracy-sub').textContent = fmtNum(d.signalEvaluated) + ' evaluated';
+    document.getElementById('kpi-wallets').textContent     = fmtNum(d.walletCount);
+    document.getElementById('kpi-smart').textContent       = fmtNum(d.smartMoneyCount);
+    document.getElementById('kpi-markets').textContent     = fmtNum(d.marketCount);
+    document.getElementById('kpi-resolutions').textContent = fmtNum(d.resolvedCount);
+  } catch(e) {
+    console.warn('summary load failed', e);
+  }
+}
+
+// ── Load calibration curve ────────────────────────────────────────────────
+let calChart = null;
+async function loadCalibration() {
+  try {
+    const d = await fetch(`${API}/public/signals/calibration`).then(r => r.json());
+    const buckets = d.calibration || [];
+    const topTypes = d.topTypes || [];
+
+    // Chart
+    const ctx = document.getElementById('calibration-chart').getContext('2d');
+    calChart = new Chart(ctx, {
+      data: {
+        datasets: [
+          {
+            type: 'line',
+            label: 'Perfect Calibration',
+            data: [0, 20, 40, 60, 80, 100].map(x => ({ x, y: x })),
+            borderColor: 'rgba(255,255,255,0.15)',
+            borderDash: [4, 4],
+            borderWidth: 1,
+            pointRadius: 0,
+            tension: 0,
+          },
+          {
+            type: 'scatter',
+            label: 'Actual Accuracy',
+            data: buckets.map(b => ({ x: b.bucket, y: b.actual_pct, n: b.n })),
+            backgroundColor: buckets.map(b =>
+              b.actual_pct > b.bucket + 2 ? 'rgba(34,197,94,0.8)' :
+              b.actual_pct < b.bucket - 2 ? 'rgba(239,68,68,0.8)' :
+              'rgba(0,212,255,0.8)'
+            ),
+            pointRadius: buckets.map(b => Math.min(4 + Math.sqrt(b.n / 500), 10)),
+            pointHoverRadius: 10,
+          },
+        ],
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: ctx => {
+                const p = ctx.raw;
+                if (p.n != null) return `Actual: ${p.y?.toFixed(1)}%  (n=${p.n?.toLocaleString()})`;
+                return '';
+              },
+            },
+          },
+        },
+        scales: {
+          x: {
+            type: 'linear', min: 0, max: 100,
+            title: { display: true, text: 'Predicted Confidence (%)', color: '#64748b', font: { size: 11 } },
+            ticks: { color: '#64748b', stepSize: 20 },
+            grid: { color: 'rgba(255,255,255,0.05)' },
+          },
+          y: {
+            min: 0, max: 100,
+            title: { display: true, text: 'Actual Accuracy (%)', color: '#64748b', font: { size: 11 } },
+            ticks: { color: '#64748b', stepSize: 20 },
+            grid: { color: 'rgba(255,255,255,0.05)' },
+          },
+        },
+      },
+    });
+
+    // Signal type table
+    const tbody = document.querySelector('#signal-table tbody');
+    if (!topTypes.length) {
+      tbody.innerHTML = '<tr><td colspan="3" style="color:var(--muted);text-align:center;padding:20px">No data yet</td></tr>';
+      return;
+    }
+    tbody.innerHTML = topTypes.slice(0, 8).map(t => {
+      const pct = t.accuracy_pct ?? 0;
+      const cls = pct >= 60 ? 'badge-green' : pct >= 50 ? 'badge-cyan' : 'badge-amber';
+      const label = (t.alert_type || '').replace(/_/g, ' ');
+      return `<tr>
+        <td style="font-size:12px">${esc(label)}</td>
+        <td>
+          <div class="acc-bar">
+            <div class="acc-track"><div class="acc-fill" style="width:${pct}%"></div></div>
+            <span class="badge ${cls}">${pct.toFixed(1)}%</span>
+          </div>
+        </td>
+        <td style="color:var(--muted);font-family:var(--mono);font-size:11px">${(t.total ?? 0).toLocaleString()}</td>
+      </tr>`;
+    }).join('');
+  } catch(e) {
+    console.warn('calibration load failed', e);
+  }
+}
+
+// ── Load dataset growth chart ─────────────────────────────────────────────
+let growthChart = null;
+async function loadGrowth() {
+  try {
+    const d = await fetch(`${API}/public/dataset/growth`).then(r => r.json());
+    const signals = d.signals || [];
+    const labels  = signals.map(r => r.month);
+
+    const ctx = document.getElementById('growth-chart').getContext('2d');
+    growthChart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [
+          {
+            label: 'Signals',
+            data: signals.map(r => r.cumulative),
+            borderColor: '#00d4ff', backgroundColor: 'rgba(0,212,255,0.06)',
+            fill: true, tension: 0.4, borderWidth: 2, pointRadius: 0,
+          },
+          {
+            label: 'Wallet Trades',
+            data: (d.wallets || []).map(r => r.cumulative),
+            borderColor: '#8b5cf6', backgroundColor: 'rgba(139,92,246,0.06)',
+            fill: true, tension: 0.4, borderWidth: 2, pointRadius: 0,
+          },
+          {
+            label: 'Resolutions',
+            data: (d.resolutions || []).map(r => r.cumulative),
+            borderColor: '#22c55e', backgroundColor: 'rgba(34,197,94,0.04)',
+            fill: true, tension: 0.4, borderWidth: 2, pointRadius: 0,
+          },
+        ],
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: {
+            labels: { color: '#94a3b8', font: { size: 11 }, boxWidth: 10, padding: 16 },
+          },
+          tooltip: {
+            callbacks: {
+              label: ctx => `${ctx.dataset.label}: ${ctx.raw.toLocaleString()}`,
+            },
+          },
+        },
+        scales: {
+          x: { ticks: { color: '#64748b', maxRotation: 0, maxTicksLimit: 6 }, grid: { color: 'rgba(255,255,255,0.04)' } },
+          y: { ticks: { color: '#64748b', callback: v => v >= 1e6 ? (v/1e6).toFixed(1)+'M' : v >= 1e3 ? (v/1e3).toFixed(0)+'K' : v }, grid: { color: 'rgba(255,255,255,0.04)' } },
+        },
+      },
+    });
+  } catch(e) {
+    console.warn('growth load failed', e);
+  }
+}
+
+// ── Nav hamburger ─────────────────────────────────────────────────────────
+document.getElementById('hamburger').addEventListener('click', () => {
+  document.getElementById('nav-links').classList.toggle('open');
+});
+
+// ── Boot ──────────────────────────────────────────────────────────────────
+loadSummary();
+loadCalibration();
+loadGrowth();
+</script>
+</body>
+</html>

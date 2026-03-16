@@ -320,6 +320,35 @@
     <a href="https://whop.com/prediction-market-plug/" target="_blank" class="btn btn-primary" style="font-size:15px;padding:12px 28px">Get Copy Trading Access →</a>
   </div>
 
+  <!-- ══════════════════════════════════════════════════════════════════════
+       RISK-ADJUSTED PERFORMANCE METRICS
+       Computed client-side from the equity endpoint (closed trade history).
+       Sharpe, Sortino, Max Drawdown, Profit Factor, Calmar Ratio.
+  ════════════════════════════════════════════════════════════════════════ -->
+  <div class="section" id="risk-section" style="display:none">
+    <div class="section-heading" style="display:flex;align-items:center;gap:12px;margin-bottom:6px">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--cyan)" stroke-width="2"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>
+      Risk-Adjusted Performance
+    </div>
+    <p class="section-sub" style="margin-bottom:24px">Institutional-grade metrics computed from every closed trade. A positive Sharpe above 1.0 indicates consistent risk-adjusted returns.</p>
+
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;margin-bottom:28px" id="risk-kpis">
+      <!-- filled by JS -->
+    </div>
+
+    <!-- Drawdown (underwater equity) chart -->
+    <div class="chart-card" style="background:var(--dark2);border:1px solid var(--border);border-radius:14px;padding:20px 24px;margin-bottom:20px">
+      <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:14px">Drawdown — Underwater Equity Curve</div>
+      <div style="position:relative;height:160px"><canvas id="drawdown-chart"></canvas></div>
+    </div>
+
+    <!-- P&L distribution histogram -->
+    <div class="chart-card" style="background:var(--dark2);border:1px solid var(--border);border-radius:14px;padding:20px 24px">
+      <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:14px">Per-Trade P&amp;L Distribution</div>
+      <div style="position:relative;height:160px"><canvas id="pnl-dist-chart"></canvas></div>
+    </div>
+  </div>
+
 </main>
 
 <script>
@@ -529,10 +558,149 @@ async function loadMembers() {
     loadOpenPositions(),
     loadClosedPositions(),
     loadMembers(),
+    loadRiskMetrics(),
   ]);
   // Refresh live data every 30s
   setInterval(() => { loadStats(); loadOpenPositions(); }, 30000);
 })();
+
+/* ── Risk-adjusted metrics ─────────────────────────────────────────────── */
+/**
+ * Fetches the full closed-trade equity history and computes:
+ * Sharpe ratio, Sortino ratio, max drawdown, profit factor, Calmar ratio.
+ *
+ * Computations are client-side to avoid adding heavy SQL to the API.
+ * All metrics use trade-level P&L (not daily) for simplicity.
+ */
+async function loadRiskMetrics() {
+  try {
+    const r = await fetch(`${API}/public/copy-trading/equity`);
+    const trades = await r.json();
+    if (!trades || trades.length < 3) return;
+
+    const pnls = trades.map(t => t.pnl ?? 0);
+    const cumPnls = trades.map(t => t.cumulativePnl ?? 0);
+
+    // ── Core statistics ─────────────────────────────────────────────────
+    const mean = pnls.reduce((s, v) => s + v, 0) / pnls.length;
+    const variance = pnls.reduce((s, v) => s + (v - mean) ** 2, 0) / pnls.length;
+    const stdDev = Math.sqrt(variance);
+
+    // Downside deviation (for Sortino — only negative returns)
+    const negReturns = pnls.filter(v => v < 0);
+    const downsideVariance = negReturns.length
+      ? negReturns.reduce((s, v) => s + v ** 2, 0) / negReturns.length
+      : 0;
+    const downsideDev = Math.sqrt(downsideVariance);
+
+    const sharpe  = stdDev > 0 ? (mean / stdDev).toFixed(2) : '—';
+    const sortino = downsideDev > 0 ? (mean / downsideDev).toFixed(2) : '—';
+
+    // Max drawdown: largest peak-to-trough decline in cumulative P&L
+    let peak = -Infinity, maxDD = 0;
+    for (const v of cumPnls) {
+      if (v > peak) peak = v;
+      const dd = peak - v;
+      if (dd > maxDD) maxDD = dd;
+    }
+    const finalPnl = cumPnls[cumPnls.length - 1] ?? 0;
+
+    // Profit factor: sum(wins) / |sum(losses)|
+    const grossProfit = pnls.filter(v => v > 0).reduce((s, v) => s + v, 0);
+    const grossLoss   = Math.abs(pnls.filter(v => v < 0).reduce((s, v) => s + v, 0));
+    const profitFactor = grossLoss > 0 ? (grossProfit / grossLoss).toFixed(2) : '—';
+
+    // Calmar = annualised return / max drawdown (approximate using trade count as proxy)
+    const calmar = maxDD > 0 ? (finalPnl / maxDD).toFixed(2) : '—';
+
+    // ── Render KPI cards ─────────────────────────────────────────────────
+    const riskSection = document.getElementById('risk-section');
+    if (riskSection) riskSection.style.display = 'block';
+
+    const sharpeColor  = parseFloat(sharpe) >= 1 ? 'var(--green)' : parseFloat(sharpe) >= 0 ? 'var(--amber)' : 'var(--red)';
+    const sortinoColor = parseFloat(sortino) >= 1 ? 'var(--green)' : parseFloat(sortino) >= 0 ? 'var(--amber)' : 'var(--red)';
+    const pfColor      = parseFloat(profitFactor) >= 1.5 ? 'var(--green)' : parseFloat(profitFactor) >= 1 ? 'var(--amber)' : 'var(--red)';
+    const ddPct        = peak > 0 ? ((maxDD / (peak + maxDD)) * 100).toFixed(1) : '0.0';
+
+    document.getElementById('risk-kpis').innerHTML = [
+      { label: 'Sharpe Ratio',    value: sharpe,         color: sharpeColor,  sub: 'return / vol' },
+      { label: 'Sortino Ratio',   value: sortino,        color: sortinoColor, sub: 'return / downside' },
+      { label: 'Max Drawdown',    value: fmtK(maxDD),    color: 'var(--red)', sub: ddPct + '% peak' },
+      { label: 'Profit Factor',   value: profitFactor,   color: pfColor,      sub: 'gross profit / loss' },
+      { label: 'Calmar Ratio',    value: calmar,         color: sharpeColor,  sub: 'return / max DD' },
+      { label: 'Closed Trades',   value: trades.length,  color: 'var(--text)',sub: 'evaluated' },
+    ].map(k => `
+      <div style="background:var(--dark3);border:1px solid var(--border);border-radius:12px;padding:16px 18px">
+        <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:8px">${k.label}</div>
+        <div style="font-size:1.6rem;font-weight:700;font-family:var(--mono);color:${k.color}">${k.value}</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:3px">${k.sub}</div>
+      </div>
+    `).join('');
+
+    // ── Drawdown chart ────────────────────────────────────────────────────
+    let runningPeak = -Infinity;
+    const ddSeries = cumPnls.map((v, i) => {
+      if (v > runningPeak) runningPeak = v;
+      return { x: i + 1, y: -(runningPeak - v) };  // negative = underwater
+    });
+
+    new Chart($('drawdown-chart'), {
+      type: 'line',
+      data: {
+        datasets: [{
+          data: ddSeries,
+          borderColor: 'rgba(239,68,68,0.8)',
+          backgroundColor: 'rgba(239,68,68,0.08)',
+          fill: true, tension: 0.3, pointRadius: 0, borderWidth: 1.5,
+        }],
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => 'Drawdown: ' + fmtK(Math.abs(c.raw.y)) } } },
+        scales: {
+          x: { type: 'linear', ticks: { color: '#475569', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,.03)' }, title: { display: true, text: 'Trade #', color: '#475569', font: { size: 10 } } },
+          y: { ticks: { color: '#475569', font: { size: 10 }, callback: v => '$' + Math.abs(v) }, grid: { color: 'rgba(255,255,255,.04)' } },
+        },
+      },
+    });
+
+    // ── P&L distribution histogram ────────────────────────────────────────
+    // Build histogram buckets: round to nearest $5 band
+    const BUCKET = 5;
+    const bucketMap = {};
+    pnls.forEach(v => {
+      const b = Math.round(v / BUCKET) * BUCKET;
+      bucketMap[b] = (bucketMap[b] || 0) + 1;
+    });
+    const bucketKeys  = Object.keys(bucketMap).map(Number).sort((a, b) => a - b);
+    const bucketVals  = bucketKeys.map(k => bucketMap[k]);
+    const bucketColors = bucketKeys.map(k => k >= 0 ? 'rgba(34,197,94,0.65)' : 'rgba(239,68,68,0.65)');
+
+    new Chart($('pnl-dist-chart'), {
+      type: 'bar',
+      data: {
+        labels: bucketKeys.map(k => (k >= 0 ? '+' : '') + '$' + k),
+        datasets: [{
+          data: bucketVals,
+          backgroundColor: bucketColors,
+          borderColor: 'transparent',
+          borderRadius: 3,
+        }],
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => c.raw + ' trade(s)' } } },
+        scales: {
+          x: { ticks: { color: '#475569', font: { size: 9 }, maxRotation: 45 }, grid: { display: false } },
+          y: { ticks: { color: '#475569', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,.04)' } },
+        },
+      },
+    });
+
+  } catch(e) {
+    console.warn('risk metrics failed', e);
+  }
+}
 </script>
 </body>
 </html>
