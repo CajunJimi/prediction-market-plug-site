@@ -519,30 +519,33 @@ async function loadActivityChart() {
 
 /* ── Category performance ────────────────────────────────────────────────── */
 async function loadCategoryChart() {
-  // This data comes from the wallet tracker — approximate from known wallet data
-  // Real impl would hit /public/leaderboard and aggregate, but we'll use static
-  // category data if available from the API
   try {
-    const r   = await fetch(`${API}/public/leaderboard?limit=100`);
+    const r   = await fetch(`${API}/public/leaderboard?n=100`);
     const lbs = await r.json();
 
-    // Build category win rates from the leaderboard best_category field
-    const cats = {};
+    // Bucket wallets by win-rate band since individual category data isn't available
+    const bands = { '90–100%': 0, '70–89%': 0, '50–69%': 0, '30–49%': 0, '<30%': 0 };
     lbs.forEach(w => {
-      const cat = w.best_category;
-      if (!cat) return;
-      if (!cats[cat]) cats[cat] = { wins: 0, n: 0 };
-      cats[cat].n++;
-      if ((w.best_category_wr_pct || w.win_rate * 100) >= 55) cats[cat].wins++;
+      const wr = w.winRate ?? 0;
+      if (wr >= 90) bands['90–100%']++;
+      else if (wr >= 70) bands['70–89%']++;
+      else if (wr >= 50) bands['50–69%']++;
+      else if (wr >= 30) bands['30–49%']++;
+      else bands['<30%']++;
     });
 
-    const sorted = Object.entries(cats)
-      .map(([cat, v]) => ({ cat, wr: Math.round(v.wins / Math.max(v.n,1) * 100), n: v.n }))
-      .sort((a,b) => b.wr - a.wr)
-      .slice(0, 10);
+    const total = lbs.length || 1;
+    const sorted = Object.entries(bands)
+      .filter(([, n]) => n > 0)
+      .map(([band, n]) => ({ cat: band, wr: Math.round((n / total) * 100), n }));
+
+    if (!sorted.length) {
+      $('cat-rows').innerHTML = '<div style="color:var(--muted);font-size:13px;padding:16px 0">No category data yet.</div>';
+      return;
+    }
 
     $('cat-rows').innerHTML = sorted.map(c => {
-      const color = c.wr >= 65 ? 'var(--green)' : c.wr >= 50 ? 'var(--cyan)' : 'var(--red)';
+      const color = c.wr >= 40 ? 'var(--green)' : c.wr >= 20 ? 'var(--cyan)' : 'var(--muted)';
       return `<div class="cat-row">
         <span class="cat-name">${c.cat}</span>
         <div class="cat-bar-wrap"><div class="cat-bar-fill" style="width:${c.wr}%;background:${color}"></div></div>
@@ -558,28 +561,32 @@ async function loadCategoryChart() {
 /* ── Top wallets leaderboard ─────────────────────────────────────────────── */
 async function loadLeaderboard() {
   try {
-    const r  = await fetch(`${API}/public/leaderboard?limit=50&minTrades=5&sortBy=winRate`);
+    const r  = await fetch(`${API}/public/leaderboard?n=50`);
     const ws = await r.json();
     const medals = ['🥇','🥈','🥉'];
 
     $('s-wallets').textContent = fmtNum(ws.length);
 
     $('lb-body').innerHTML = ws.slice(0, 40).map((w, i) => {
-      const wr   = w.win_rate_pct ?? (w.win_rate ? (w.win_rate*100).toFixed(1) : null);
-      const name = w.username || shortAddr(w.wallet_address);
-      const streak = w.current_streak > 0
-        ? `<span class="streak-pos">▲${w.current_streak}</span>`
-        : w.current_streak < 0
-        ? `<span class="streak-neg">▼${Math.abs(w.current_streak)}</span>`
+      // API returns winRate as 0–100 percentage (camelCase fields)
+      const wr   = w.winRate ?? (w.win_rate != null ? (w.win_rate * 100).toFixed(1) : null);
+      const name = w.displayName || w.username || shortAddr(w.shortAddr || '');
+      const streak = (w.currentStreak || w.current_streak || 0);
+      const streakHtml = streak > 0
+        ? `<span class="streak-pos">▲${streak}</span>`
+        : streak < 0
+        ? `<span class="streak-neg">▼${Math.abs(streak)}</span>`
         : '<span style="color:var(--muted)">—</span>';
       const rankClass = i === 0 ? 'rank-1' : i === 1 ? 'rank-2' : i === 2 ? 'rank-3' : '';
       const fillColor = wr >= 65 ? 'var(--green)' : wr >= 50 ? 'var(--cyan)' : 'var(--red)';
+      const trades = w.totalTrades ?? w.total_trades ?? '—';
+      const volume = w.totalVolumeUsd ?? w.total_volume_usd ?? null;
       return `
         <tr class="${rankClass}">
           <td><span class="rank-num">${medals[i] ?? (i+1)}</span></td>
           <td>
             <div class="wallet-name">${name}</div>
-            ${w.username ? `<div class="wallet-addr">${shortAddr(w.wallet_address)}</div>` : ''}
+            ${w.displayName ? `<div class="wallet-addr">${w.shortAddr || ''}</div>` : ''}
           </td>
           <td>
             <div class="win-bar-wrap">
@@ -587,10 +594,10 @@ async function loadLeaderboard() {
               <span class="win-pct" style="color:${fillColor}">${wr}%</span>
             </div>
           </td>
-          <td class="r">${fmtNum(w.total_trades)}</td>
-          <td class="r">${streak}</td>
-          <td class="r">${fmtK(w.total_volume_usd)}</td>
-          <td class="r">${w.best_category ? `<span class="tag tag-cat">${w.best_category}</span>` : '—'}</td>
+          <td class="r">${fmtNum(trades)}</td>
+          <td class="r">${streakHtml}</td>
+          <td class="r">${fmtK(volume)}</td>
+          <td class="r">—</td>
         </tr>`;
     }).join('');
   } catch(e) {
