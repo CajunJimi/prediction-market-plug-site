@@ -110,7 +110,7 @@
     }
 
     /* ── PAGE LAYOUT ─────────────────────────────────────────────────── */
-    .page { max-width: 1200px; margin: 0 auto; padding: 28px 20px 60px; }
+    .page { max-width: 1340px; margin: 0 auto; padding: 28px 20px 60px; }
 
     /* ── HEADER ──────────────────────────────────────────────────────── */
     .page-header { margin-bottom: 28px; }
@@ -118,12 +118,12 @@
       font-size: 26px; font-weight: 700; color: var(--text);
       display: flex; align-items: center; gap: 10px;
     }
-    .page-header p { color: var(--muted); margin-top: 6px; font-size: 13px; max-width: 600px; }
+    .page-header p { color: var(--muted); margin-top: 6px; font-size: 13px; max-width: 700px; }
 
     /* ── STAT STRIP ──────────────────────────────────────────────────── */
     .stat-strip {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
       gap: 12px; margin-bottom: 24px;
     }
     .stat-card {
@@ -136,10 +136,24 @@
     }
     .stat-card .val.neutral { color: var(--text); }
     .stat-card .val.green   { color: var(--green); }
+    .stat-card .val.purple  { color: var(--purple); }
     .stat-card .lbl {
       font-size: 11px; color: var(--muted); margin-top: 3px;
       text-transform: uppercase; letter-spacing: .05em;
     }
+
+    /* ── TAB BAR ──────────────────────────────────────────────────────── */
+    .tab-bar {
+      display: flex; gap: 4px; margin-bottom: 18px;
+      border-bottom: 1px solid var(--border); padding-bottom: 0;
+    }
+    .tab-bar button {
+      background: none; border: none; border-bottom: 2px solid transparent;
+      color: var(--muted); font-family: var(--sans); font-size: 13px; font-weight: 600;
+      padding: 10px 18px; cursor: pointer; transition: color .15s, border-color .15s;
+    }
+    .tab-bar button:hover { color: var(--text); }
+    .tab-bar button.active { color: var(--cyan); border-bottom-color: var(--cyan); }
 
     /* ── CONTROLS ────────────────────────────────────────────────────── */
     .controls {
@@ -154,7 +168,7 @@
       transition: border-color .15s;
     }
     .controls select:focus, .controls input[type=number]:focus {
-      border-color: rgba(239,68,68,.5);
+      border-color: rgba(0,212,255,.5);
     }
     .controls input[type=number] { width: 90px; }
     .btn {
@@ -164,7 +178,7 @@
     }
     .btn:hover { opacity: .85; }
     .btn:active { transform: scale(.97); }
-    .btn-primary { background: var(--red); color: #fff; }
+    .btn-primary { background: var(--cyan); color: #000; }
     .btn-ghost {
       background: transparent; color: var(--muted);
       border: 1px solid var(--border);
@@ -185,7 +199,7 @@
       background: var(--surface2);
       white-space: nowrap;
     }
-    thead th.sort-active { color: var(--red); }
+    thead th.sort-active { color: var(--cyan); }
     thead th.r { text-align: right; }
     tbody tr {
       border-bottom: 1px solid rgba(255,255,255,.04);
@@ -197,10 +211,8 @@
     tbody td.r { text-align: right; font-family: var(--mono); }
     tbody td.mono { font-family: var(--mono); }
 
-    /* rank badge */
     .rank { font-family: var(--mono); color: var(--muted); font-size: 12px; min-width: 30px; }
 
-    /* wallet name cell */
     .wallet-name { font-weight: 600; color: var(--text); }
     .wallet-addr { font-family: var(--mono); font-size: 11px; color: var(--muted); margin-top: 2px; }
     .wallet-links { display: flex; gap: 8px; margin-top: 4px; }
@@ -210,7 +222,7 @@
     }
     .wallet-links a:hover { opacity: 1; }
 
-    /* win-rate bar */
+    /* ── Win-rate bar ────────────────────────────────────────────────── */
     .wr-cell { display: flex; align-items: center; gap: 8px; }
     .wr-bar-bg {
       width: 64px; height: 5px; border-radius: 3px;
@@ -219,7 +231,44 @@
     .wr-bar-fill { height: 100%; border-radius: 3px; }
     .wr-val { font-family: var(--mono); font-size: 12px; white-space: nowrap; }
 
-    /* streak badge */
+    /* ── Bot score badge ─────────────────────────────────────────────── */
+    .bot-badge {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 2px 8px; border-radius: 20px;
+      font-family: var(--mono); font-size: 11px; font-weight: 600;
+    }
+    .bot-badge.bot   { background: rgba(168,85,247,.15); color: var(--purple); }
+    .bot-badge.maybe { background: rgba(245,158,11,.1);  color: var(--amber); }
+    .bot-badge.human { background: rgba(255,255,255,.06); color: var(--muted); }
+
+    /* ── Bot score breakdown tooltip ─────────────────────────────────── */
+    .bot-detail {
+      position: relative; cursor: help;
+    }
+    .bot-detail .bot-tooltip {
+      display: none; position: absolute; bottom: calc(100% + 8px); left: 50%;
+      transform: translateX(-50%); z-index: 10;
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 8px; padding: 10px 14px; width: 200px;
+      font-size: 11px; color: var(--muted);
+      box-shadow: 0 8px 24px rgba(0,0,0,.5);
+    }
+    .bot-detail:hover .bot-tooltip { display: block; }
+    .bot-tooltip .bt-row { display: flex; justify-content: space-between; margin-bottom: 3px; }
+    .bot-tooltip .bt-row:last-child { margin-bottom: 0; }
+    .bot-tooltip .bt-bar {
+      height: 3px; border-radius: 2px; background: rgba(255,255,255,.08);
+      margin-top: 2px;
+    }
+    .bot-tooltip .bt-fill { height: 100%; border-radius: 2px; background: var(--purple); }
+
+    /* ── Real P&L cell ──────────────────────────────────────────────── */
+    .pnl-real { font-weight: 600; }
+    .pnl-real.pos { color: var(--green); }
+    .pnl-real.neg { color: var(--red); }
+    .pnl-source { font-size: 10px; color: var(--muted); font-family: var(--mono); }
+
+    /* ── Streak badge ───────────────────────────────────────────────── */
     .streak {
       display: inline-flex; align-items: center; gap: 4px;
       padding: 2px 8px; border-radius: 20px;
@@ -236,7 +285,7 @@
     .loading .spinner {
       width: 32px; height: 32px; border-radius: 50%;
       border: 3px solid rgba(255,255,255,.08);
-      border-top-color: var(--red);
+      border-top-color: var(--cyan);
       animation: spin .8s linear infinite;
       margin: 0 auto 14px;
     }
@@ -246,10 +295,10 @@
     /* ── INSIGHT BOX ─────────────────────────────────────────────────── */
     .insight {
       margin-top: 20px; padding: 14px 18px;
-      background: rgba(239,68,68,.06); border: 1px solid rgba(239,68,68,.15);
+      background: rgba(0,212,255,.04); border: 1px solid rgba(0,212,255,.12);
       border-radius: 10px; font-size: 13px; color: var(--muted); line-height: 1.7;
     }
-    .insight strong { color: var(--red); }
+    .insight strong { color: var(--cyan); }
     .insight a { color: var(--cyan); text-decoration: none; }
     .insight a:hover { text-decoration: underline; }
 
@@ -267,13 +316,9 @@
     .opportunity strong { color: var(--text); }
 
     /* ── RESPONSIVE ──────────────────────────────────────────────────── */
-    @media (max-width: 768px) {
-      .hide-mobile { display: none; }
-      thead th, tbody td { padding: 9px 10px; }
-    }
-    @media (max-width: 500px) {
-      .hide-sm { display: none; }
-    }
+    @media (max-width: 900px) { .hide-tablet { display: none; } }
+    @media (max-width: 768px) { .hide-mobile { display: none; } }
+    @media (max-width: 500px) { .hide-sm { display: none; } }
   </style>
 </head>
 <body>
@@ -314,18 +359,26 @@
       Hall of Shame
     </h1>
     <p>
-      Wallets with the worst track records tracked by our bot — consistently wrong,
-      often with high conviction. Useful for identifying counter-trade opportunities
-      and understanding how the losing side thinks.
+      Every wallet on Polymarket — profiled with <strong>real resolved P&amp;L</strong> and
+      <strong>bot detection scores</strong>. Find the worst traders to counter-trade, or identify
+      winning bots to copy. Data sourced from the Polymarket leaderboard, enriched via our subgraph resolver.
     </p>
   </div>
 
-  <!-- Stat strip (populated by JS) -->
+  <!-- Stat strip -->
   <div class="stat-strip" id="stats">
-    <div class="stat-card"><div class="val neutral" id="stat-total">—</div><div class="lbl">Wallets Tracked</div></div>
-    <div class="stat-card"><div class="val" id="stat-losing">—</div><div class="lbl">Below 50% Win Rate</div></div>
-    <div class="stat-card"><div class="val" id="stat-pct">—</div><div class="lbl">% of Tracked</div></div>
-    <div class="stat-card"><div class="val" id="stat-avg-wr">—</div><div class="lbl">Avg Win Rate (Platform)</div></div>
+    <div class="stat-card"><div class="val neutral" id="stat-total">—</div><div class="lbl">Wallets Profiled</div></div>
+    <div class="stat-card"><div class="val" id="stat-losing">—</div><div class="lbl">Real P&amp;L &lt; $0</div></div>
+    <div class="stat-card"><div class="val purple" id="stat-bots">—</div><div class="lbl">Detected Bots</div></div>
+    <div class="stat-card"><div class="val green" id="stat-winning-bots">—</div><div class="lbl">Winning Bots</div></div>
+    <div class="stat-card"><div class="val neutral" id="stat-avg-wr">—</div><div class="lbl">Avg Win Rate</div></div>
+  </div>
+
+  <!-- Tab bar: switch between views -->
+  <div class="tab-bar">
+    <button class="active" data-view="losers">Biggest Losers</button>
+    <button data-view="bots">All Bots</button>
+    <button data-view="winning-bots">Winning Bots (Copy Targets)</button>
   </div>
 
   <!-- Controls -->
@@ -333,45 +386,54 @@
     <div>
       <label for="ctrl-sort">Sort by</label>
       <select id="ctrl-sort">
-        <option value="loss">Est. $ Lost (default)</option>
+        <option value="loss">Biggest Losers (default)</option>
         <option value="winRate">Worst Win Rate</option>
-        <option value="streak">Active Losing Streak</option>
+        <option value="botScore">Highest Bot Score</option>
       </select>
     </div>
     <div>
       <label for="ctrl-min-trades">Min trades</label>
-      <input id="ctrl-min-trades" type="number" value="5" min="1" max="100" />
+      <input id="ctrl-min-trades" type="number" value="10" min="1" max="500" />
     </div>
     <div>
       <label for="ctrl-min-vol">Min volume ($)</label>
-      <input id="ctrl-min-vol" type="number" value="0" min="0" step="100" />
+      <input id="ctrl-min-vol" type="number" value="1000" min="0" step="500" />
+    </div>
+    <div>
+      <label for="ctrl-source">Data source</label>
+      <select id="ctrl-source">
+        <option value="all">All sources</option>
+        <option value="crawled">Crawled only (real P&amp;L)</option>
+        <option value="tracked">Tracked only (scanner)</option>
+      </select>
     </div>
     <div>
       <label for="ctrl-limit">Show</label>
       <select id="ctrl-limit">
-        <option value="25">Top 25</option>
-        <option value="50" selected>Top 50</option>
-        <option value="100">Top 100</option>
+        <option value="50">Top 50</option>
+        <option value="100" selected>Top 100</option>
+        <option value="200">Top 200</option>
+        <option value="500">Top 500</option>
       </select>
     </div>
-    <button class="btn btn-primary" id="btn-load">🔄 Refresh</button>
-    <button class="btn btn-ghost" id="btn-export" style="display:none">⬇ Export CSV</button>
+    <button class="btn btn-primary" id="btn-load">Refresh</button>
+    <button class="btn btn-ghost" id="btn-export" style="display:none">Export CSV</button>
   </div>
 
   <!-- Table -->
   <div class="table-wrap">
     <table>
-      <thead>
+      <thead id="thead">
         <tr>
           <th>#</th>
           <th>Wallet</th>
-          <th id="th-wr" class="sort-active">Win Rate</th>
+          <th>Bot</th>
+          <th>Win Rate</th>
+          <th class="r">Real P&amp;L</th>
           <th class="r hide-sm">Trades</th>
-          <th class="r">Wrong</th>
-          <th class="r" id="th-loss">Est. $ Lost</th>
-          <th class="r hide-mobile">Avg Size</th>
           <th class="r hide-mobile">Volume</th>
-          <th class="hide-mobile">Streak</th>
+          <th class="r hide-tablet">Avg Size</th>
+          <th class="hide-tablet">Source</th>
         </tr>
       </thead>
       <tbody id="tbody">
@@ -379,7 +441,7 @@
           <td colspan="9">
             <div class="loading">
               <div class="spinner"></div>
-              <div>Loading Hall of Shame…</div>
+              <div>Loading wallet profiles…</div>
             </div>
           </td>
         </tr>
@@ -387,26 +449,25 @@
     </table>
   </div>
 
-  <!-- Opportunity insight box (shown after data loads) -->
+  <!-- Opportunity insight boxes -->
   <div class="opportunity" id="opp-box" style="display:none">
-    <div class="opp-title">💡 How to Use This for Marketing Opportunities</div>
+    <div class="opp-title">How to Use This Data</div>
     <ul>
-      <li><strong>Counter-trade signals:</strong> Wallets consistently below 40% win rate are losing on both sides of markets — when they make a large bet, the contrarian position has positive expected value.</li>
-      <li><strong>Content &amp; outreach:</strong> High-volume losers are actively engaged bettors who clearly want to win. They're the most likely to pay for better tools, signals, or coaching.</li>
-      <li><strong>Pattern analysis:</strong> Click any wallet to open their full profile and see which categories they keep losing in — they may be experts in one area and terrible in others.</li>
-      <li><strong>Confidence vs accuracy:</strong> Sort by "Worst Win Rate" and look for wallets with high average trade sizes — they're spending big with conviction and losing. Prime target for copy-trade counter-positioning.</li>
+      <li><strong>Counter-trade signals:</strong> Wallets with &lt;40% win rate and high volume are consistently wrong with conviction. When they bet big, the other side has positive expected value.</li>
+      <li><strong>Copy-trade bots:</strong> Switch to "Winning Bots" tab to find algorithmic traders with high win rates — these are your copy-trade targets.</li>
+      <li><strong>Marketing targets:</strong> High-volume losers are actively engaged bettors who want to win. They're the most likely to pay for better signals and tools.</li>
+      <li><strong>Bot detection:</strong> Hover over any bot score to see the breakdown — frequency, timing regularity, size uniformity, 24/7 activity, and execution speed.</li>
     </ul>
   </div>
 
   <div class="insight" id="insight-box" style="display:none">
-    ⚠️ <strong>Important:</strong> Polymarket's own leaderboard uses unrealized mark-to-market PNL on open positions —
-    a wallet can show as a "winner" on Polymarket while having deeply negative <em>resolved</em> P&L.
-    Our win rate is based on resolved trades only (actual outcomes), which is a more reliable signal.
-    Click any wallet name to see their full equity curve on the
-    <a href="/wallet.html">Wallet page</a>.
+    <strong>About the data:</strong> "Real P&amp;L" is computed from every resolved trade on the Goldsky subgraph — not the misleading
+    mark-to-market figure on Polymarket's leaderboard. Bot scores are computed from trade pattern analysis (timing, sizing, hours of activity).
+    Click any wallet to see their full equity curve on the <a href="/wallet.html">Wallet page</a>.
+    Run the crawler (<code>npm run crawl-wallets</code>) to expand coverage.
   </div>
 
-</div><!-- /.page -->
+</div>
 
 <script>
 /* ── Config ─────────────────────────────────────────────────────────────── */
@@ -416,18 +477,46 @@ const API = (location.hostname === 'localhost' || location.hostname === '127.0.0
 
 /* ── State ──────────────────────────────────────────────────────────────── */
 let currentData = [];
+let currentView = 'losers';
 
 /* ── Nav hamburger ──────────────────────────────────────────────────────── */
 document.getElementById('hamburger').addEventListener('click', () => {
   document.getElementById('nav-links').classList.toggle('open');
 });
 
+/* ── Tab switching ────────────────────────────────────────────────────── */
+document.querySelectorAll('.tab-bar button').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-bar button').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentView = btn.dataset.view;
+
+    // Auto-set sort + filters per tab for convenience
+    const sortEl = document.getElementById('ctrl-sort');
+    if (currentView === 'bots') {
+      sortEl.value = 'botScore';
+    } else if (currentView === 'winning-bots') {
+      sortEl.value = 'botScore';
+    } else {
+      sortEl.value = 'loss';
+    }
+    loadData();
+  });
+});
+
 /* ── Formatting helpers ─────────────────────────────────────────────────── */
 function fDollar(n) {
   if (n == null || isNaN(n)) return '—';
-  if (n >= 1_000_000) return '$' + (n / 1_000_000).toFixed(2) + 'M';
-  if (n >= 1_000)     return '$' + (n / 1_000).toFixed(1) + 'K';
+  if (Math.abs(n) >= 1_000_000) return '$' + (n / 1_000_000).toFixed(2) + 'M';
+  if (Math.abs(n) >= 1_000)     return '$' + (n / 1_000).toFixed(1) + 'K';
   return '$' + Math.round(n).toLocaleString();
+}
+
+function fPnl(n) {
+  if (n == null || isNaN(n)) return '<span style="color:var(--muted)">—</span>';
+  const sign = n >= 0 ? '+' : '-';
+  const cls  = n >= 0 ? 'pos' : 'neg';
+  return `<span class="pnl-real ${cls}">${sign}${fDollar(Math.abs(n))}</span>`;
 }
 
 function fNum(n) {
@@ -435,33 +524,53 @@ function fNum(n) {
   return Number(n).toLocaleString();
 }
 
-/* ── Win-rate bar helper ─────────────────────────────────────────────────── */
 function wrColor(wr) {
   if (wr == null) return 'var(--muted)';
   if (wr < 35)  return 'var(--red)';
-  if (wr < 50)  return '#f97316';   /* orange */
+  if (wr < 50)  return '#f97316';
   if (wr < 65)  return 'var(--amber)';
   return 'var(--green)';
 }
 
-/* ── Streak badge ────────────────────────────────────────────────────────── */
-function streakBadge(streak) {
-  if (streak == null || streak === 0) {
-    return '<span class="streak none">—</span>';
-  }
-  if (streak < 0) {
-    // Negative = active losing streak
-    return `<span class="streak loss">📉 ${Math.abs(streak)} L</span>`;
-  }
-  return `<span class="streak win">🔥 ${streak} W</span>`;
+function esc(s) {
+  if (s == null) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
-/* ── Render table ────────────────────────────────────────────────────────── */
+/* ── Bot score badge ──────────────────────────────────────────────────── */
+function botBadge(w) {
+  const score = w.botScore;
+  if (score == null) return '<span class="bot-badge human">—</span>';
+
+  let cls, icon;
+  if (score >= 60)      { cls = 'bot';   icon = '&#x1F916;'; }
+  else if (score >= 30) { cls = 'maybe'; icon = '&#x26A1;'; }
+  else                  { cls = 'human'; icon = '&#x1F464;'; }
+
+  // Build breakdown tooltip if available
+  let tooltip = '';
+  if (w.botBreakdown) {
+    const b = w.botBreakdown;
+    const bar = (v) => `<div class="bt-bar"><div class="bt-fill" style="width:${v}%"></div></div>`;
+    tooltip = `<div class="bot-tooltip">
+      <div style="font-weight:600;color:var(--text);margin-bottom:6px">Bot Score: ${score}/100</div>
+      <div class="bt-row"><span>Frequency</span><span>${b.frequency}</span></div>${bar(b.frequency)}
+      <div class="bt-row"><span>Regularity</span><span>${b.regularity}</span></div>${bar(b.regularity)}
+      <div class="bt-row"><span>Size uniformity</span><span>${b.sizing}</span></div>${bar(b.sizing)}
+      <div class="bt-row"><span>24/7 activity</span><span>${b.hours}</span></div>${bar(b.hours)}
+      <div class="bt-row"><span>Exec speed</span><span>${b.speed}</span></div>${bar(b.speed)}
+    </div>`;
+  }
+
+  return `<span class="bot-detail"><span class="bot-badge ${cls}">${icon} ${score}</span>${tooltip}</span>`;
+}
+
+/* ── Render table ────────────────────────────────────────────────────── */
 function renderTable(data) {
   const tbody = document.getElementById('tbody');
 
   if (!data || data.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="9"><div class="empty"><div class="empty-icon">🎉</div>No wallets match these filters</div></td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="9"><div class="empty"><div class="empty-icon">&#x1F389;</div>No wallets match these filters.<br><small style="color:var(--muted)">Run <code>npm run crawl-wallets</code> to populate data.</small></div></td></tr>`;
     document.getElementById('opp-box').style.display = 'none';
     document.getElementById('insight-box').style.display = 'none';
     return;
@@ -481,17 +590,21 @@ function renderTable(data) {
       ? `<div class="wallet-addr">${esc(w.shortAddr || '')}</div>`
       : '';
 
-    // Links: full profile on PMP wallet page + Polymarket
     const links = w.fullAddr
       ? `<div class="wallet-links">
-           <a href="/wallet.html?wallet=${encodeURIComponent(w.fullAddr)}" title="Full profile">📊 Profile</a>
-           <a href="${esc(w.polymarketUrl)}" target="_blank" rel="noopener" title="Polymarket">🔗 Polymarket</a>
+           <a href="/wallet.html?wallet=${encodeURIComponent(w.fullAddr)}" title="Full profile">Profile</a>
+           <a href="${esc(w.polymarketUrl)}" target="_blank" rel="noopener" title="Polymarket">Polymarket</a>
          </div>`
       : '';
+
+    const srcBadge = w.dataSource === 'crawled'
+      ? '<span style="font-size:10px;color:var(--purple)">crawled</span>'
+      : '<span style="font-size:10px;color:var(--muted)">tracked</span>';
 
     return `<tr>
       <td><span class="rank">${w.rank}</span></td>
       <td>${name}${addr}${links}</td>
+      <td>${botBadge(w)}</td>
       <td>
         <div class="wr-cell">
           <div class="wr-bar-bg">
@@ -500,12 +613,11 @@ function renderTable(data) {
           <span class="wr-val" style="color:${color}">${wrPct}</span>
         </div>
       </td>
-      <td class="r hide-sm">${fNum(w.totalTrades)}</td>
-      <td class="r mono" style="color:var(--red)">${fNum(w.incorrectTrades)}</td>
-      <td class="r mono" style="color:var(--red)">${fDollar(w.estimatedLossUsd)}</td>
-      <td class="r hide-mobile mono" style="color:var(--muted)">${fDollar(w.avgTradeSizeUsd)}</td>
+      <td class="r">${fPnl(w.realPnl)}</td>
+      <td class="r hide-sm mono">${fNum(w.resolvedTrades || w.totalTrades)}</td>
       <td class="r hide-mobile mono" style="color:var(--muted)">${fDollar(w.totalVolumeUsd)}</td>
-      <td class="hide-mobile">${streakBadge(w.currentStreak)}</td>
+      <td class="r hide-tablet mono" style="color:var(--muted)">${fDollar(w.avgTradeSizeUsd)}</td>
+      <td class="hide-tablet">${srcBadge}</td>
     </tr>`;
   }).join('');
 
@@ -515,41 +627,47 @@ function renderTable(data) {
   document.getElementById('insight-box').style.display = 'block';
 }
 
-/* ── Escape HTML ────────────────────────────────────────────────────────── */
-function esc(s) {
-  if (s == null) return '';
-  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-}
-
-/* ── Load data ───────────────────────────────────────────────────────────── */
+/* ── Load data ───────────────────────────────────────────────────────── */
 async function loadData() {
   const sortBy    = document.getElementById('ctrl-sort').value;
-  const minTrades = parseInt(document.getElementById('ctrl-min-trades').value, 10) || 5;
+  const minTrades = parseInt(document.getElementById('ctrl-min-trades').value, 10) || 10;
   const minVol    = parseFloat(document.getElementById('ctrl-min-vol').value) || 0;
-  const limit     = parseInt(document.getElementById('ctrl-limit').value, 10) || 50;
+  const source    = document.getElementById('ctrl-source').value;
+  const limit     = parseInt(document.getElementById('ctrl-limit').value, 10) || 100;
 
-  // Show loading state
   document.getElementById('tbody').innerHTML = `
-    <tr><td colspan="9"><div class="loading"><div class="spinner"></div><div>Loading worst performers…</div></div></td></tr>`;
+    <tr><td colspan="9"><div class="loading"><div class="spinner"></div><div>Loading wallet profiles…</div></div></td></tr>`;
   document.getElementById('btn-export').style.display = 'none';
   document.getElementById('opp-box').style.display = 'none';
   document.getElementById('insight-box').style.display = 'none';
 
-  // Update column header sort highlight
-  document.getElementById('th-wr').classList.toggle('sort-active', sortBy === 'winRate');
-  document.getElementById('th-loss').classList.toggle('sort-active', sortBy === 'loss');
-
   try {
-    const url = `${API}/public/losers?sortBy=${sortBy}&minTrades=${minTrades}&minVol=${minVol}&limit=${limit}`;
+    const url = `${API}/public/losers?sortBy=${sortBy}&minTrades=${minTrades}&minVol=${minVol}&limit=${limit}&source=${source}`;
     const res = await fetch(url);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data = await res.json();
+    let data = await res.json();
+
+    // Apply view-level filters client-side
+    if (currentView === 'bots') {
+      // Show only wallets with bot score >= 60
+      data = data.filter(w => (w.botScore ?? 0) >= 60);
+    } else if (currentView === 'winning-bots') {
+      // Show only bots with positive real P&L or win rate > 55%
+      data = data.filter(w => (w.botScore ?? 0) >= 60 && ((w.realPnl ?? 0) > 0 || (w.winRate ?? 0) > 55));
+      // Sort winning bots by real P&L descending (best first)
+      data.sort((a, b) => (b.realPnl ?? 0) - (a.realPnl ?? 0));
+    }
+
+    // Re-rank after filtering
+    data.forEach((w, i) => w.rank = i + 1);
+
     currentData = data;
     renderTable(data);
+    updateStats(data);
   } catch (err) {
     document.getElementById('tbody').innerHTML = `
       <tr><td colspan="9"><div class="empty">
-        <div class="empty-icon">⚠️</div>
+        <div class="empty-icon">&#x26A0;&#xFE0F;</div>
         <div>Failed to load data</div>
         <div style="font-size:11px;margin-top:6px">${esc(err.message)}</div>
       </div></td></tr>`;
@@ -557,67 +675,58 @@ async function loadData() {
   }
 }
 
-/* ── Load platform stats (for stat strip) ─────────────────────────────── */
-async function loadStats() {
-  try {
-    const res = await fetch(`${API}/public/stats`);
-    if (!res.ok) return;
-    const s = await res.json();
-    document.getElementById('stat-total').textContent  = (s.trackedWallets || 0).toLocaleString();
-  } catch { /* non-fatal */ }
+/* ── Update stat strip ───────────────────────────────────────────────── */
+function updateStats(data) {
+  if (!data || data.length === 0) return;
 
-  // Also compute stats from the loaded leaderboard data after it arrives
-  // We re-read after renderTable fires
-}
+  document.getElementById('stat-total').textContent = data.length.toLocaleString();
 
-/* ── Update stat strip from loaded data ────────────────────────────────── */
-function updateStats(data, allData) {
-  // These stats are derived from all losers (not just the page slice)
-  if (!allData || allData.length === 0) return;
-  const losing = allData.filter(w => (w.winRate ?? 100) < 50).length;
+  const losing = data.filter(w => (w.realPnl ?? -1) < 0).length;
   document.getElementById('stat-losing').textContent = losing.toLocaleString();
 
-  const total = parseInt(document.getElementById('stat-total').textContent.replace(/,/g,''), 10) || 0;
-  if (total > 0) {
-    document.getElementById('stat-pct').textContent = Math.round(losing / total * 100) + '%';
-  }
+  const bots = data.filter(w => (w.botScore ?? 0) >= 60).length;
+  document.getElementById('stat-bots').textContent = bots.toLocaleString();
 
-  const avg = allData.reduce((s, w) => s + (w.winRate ?? 50), 0) / allData.length;
-  document.getElementById('stat-avg-wr').textContent = avg.toFixed(1) + '%';
+  const winningBots = data.filter(w => (w.botScore ?? 0) >= 60 && ((w.realPnl ?? 0) > 0 || (w.winRate ?? 0) > 55)).length;
+  document.getElementById('stat-winning-bots').textContent = winningBots.toLocaleString();
+
+  const avgWr = data.reduce((s, w) => s + (w.winRate ?? 50), 0) / data.length;
+  document.getElementById('stat-avg-wr').textContent = avgWr.toFixed(1) + '%';
 }
 
-/* ── CSV Export ─────────────────────────────────────────────────────────── */
+/* ── CSV Export ─────────────────────────────────────────────────────── */
 document.getElementById('btn-export').addEventListener('click', () => {
   if (!currentData.length) return;
-  const headers = ['Rank','Name','Address','Win Rate (%)','Total Trades','Wrong','Est. Loss ($)','Volume ($)','Avg Size ($)','Streak','Polymarket URL'];
+  const headers = ['Rank','Name','Address','Bot Score','Is Bot','Win Rate (%)','Real P&L ($)','Total Trades','Resolved','Volume ($)','Avg Size ($)','Source','Polymarket URL'];
   const rows = currentData.map(w => [
     w.rank,
     w.displayName || '',
     w.fullAddr || '',
+    w.botScore ?? '',
+    w.isBot ? 'Yes' : 'No',
     w.winRate != null ? w.winRate.toFixed(1) : '',
-    w.totalTrades,
-    w.incorrectTrades,
-    w.estimatedLossUsd != null ? w.estimatedLossUsd.toFixed(2) : '',
+    w.realPnl != null ? w.realPnl.toFixed(2) : '',
+    w.totalTrades ?? '',
+    w.resolvedTrades ?? '',
     w.totalVolumeUsd != null ? w.totalVolumeUsd.toFixed(2) : '',
     w.avgTradeSizeUsd != null ? w.avgTradeSizeUsd.toFixed(2) : '',
-    w.currentStreak != null ? w.currentStreak : '',
+    w.dataSource || '',
     w.polymarketUrl || '',
   ]);
   const csv = [headers, ...rows].map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
   const blob = new Blob([csv], { type: 'text/csv' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = `pmp-losers-${new Date().toISOString().slice(0,10)}.csv`;
+  a.download = `pmp-wallets-${currentView}-${new Date().toISOString().slice(0,10)}.csv`;
   a.click();
 });
 
-/* ── Wire up controls ───────────────────────────────────────────────────── */
+/* ── Wire up controls ─────────────────────────────────────────────────── */
 document.getElementById('btn-load').addEventListener('click', loadData);
 document.getElementById('ctrl-sort').addEventListener('change', loadData);
 
-/* ── Initial load ────────────────────────────────────────────────────────── */
-loadStats();
-loadData().then(() => updateStats(currentData, currentData));
+/* ── Initial load ──────────────────────────────────────────────────────── */
+loadData();
 </script>
 </body>
 </html>
