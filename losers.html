@@ -554,11 +554,11 @@ function botBadge(w) {
     const bar = (v) => `<div class="bt-bar"><div class="bt-fill" style="width:${v}%"></div></div>`;
     tooltip = `<div class="bot-tooltip">
       <div style="font-weight:600;color:var(--text);margin-bottom:6px">Bot Score: ${score}/100</div>
-      <div class="bt-row"><span>Frequency</span><span>${b.frequency}</span></div>${bar(b.frequency)}
-      <div class="bt-row"><span>Regularity</span><span>${b.regularity}</span></div>${bar(b.regularity)}
-      <div class="bt-row"><span>Size uniformity</span><span>${b.sizing}</span></div>${bar(b.sizing)}
-      <div class="bt-row"><span>24/7 activity</span><span>${b.hours}</span></div>${bar(b.hours)}
-      <div class="bt-row"><span>Exec speed</span><span>${b.speed}</span></div>${bar(b.speed)}
+      <div class="bt-row"><span>Same-sec fills</span><span>${b.speed}</span></div>${bar(b.speed)}
+      <div class="bt-row"><span>Trade frequency</span><span>${b.frequency}</span></div>${bar(b.frequency)}
+      <div class="bt-row"><span>Burst pattern</span><span>${b.regularity}</span></div>${bar(b.regularity)}
+      <div class="bt-row"><span>Model staking</span><span>${b.sizing}</span></div>${bar(b.sizing)}
+      <div class="bt-row"><span>Hour concentration</span><span>${b.hours}</span></div>${bar(b.hours)}
     </div>`;
   }
 
