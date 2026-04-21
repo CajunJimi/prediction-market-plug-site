@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <script>
+  (function(){
+    var COOKIE='pmp_beta_auth', PASS='polymarket2026', DAYS=7;
+    function getCookie(n){var m=document.cookie.match('(^|;)\\s*'+n+'\\s*=\\s*([^;]+)');return m?m.pop():'';}
+    if(getCookie(COOKIE)===PASS)return;
+    document.documentElement.style.visibility='hidden';
+    window.addEventListener('DOMContentLoaded',function(){
+      document.documentElement.style.visibility='';
+      var d=document.createElement('div');
+      d.innerHTML='<div style="position:fixed;inset:0;background:#0a0c10;display:flex;align-items:center;justify-content:center;z-index:99999;font-family:system-ui,sans-serif"><div style="background:#111318;border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:40px;width:320px;text-align:center"><div style="font-size:22px;font-weight:700;color:#e2e8f0;margin-bottom:6px">PredictionMarketPlug</div><div style="font-size:13px;color:#64748b;margin-bottom:24px">Beta — enter password to continue</div><input id="_pw_in" type="password" placeholder="Password" style="width:100%;padding:11px 14px;background:#1f2433;border:1px solid rgba(255,255,255,.1);border-radius:8px;color:#e2e8f0;font-size:14px;outline:none;box-sizing:border-box;margin-bottom:10px" /><div id="_pw_err" style="color:#ef4444;font-size:12px;min-height:18px;margin-bottom:10px"></div><button id="_pw_btn" style="width:100%;padding:11px;background:#00d4ff;color:#000;font-weight:700;font-size:14px;border:none;border-radius:8px;cursor:pointer">Enter</button></div></div>';
+      document.body.prepend(d);
+      function attempt(){var v=document.getElementById('_pw_in').value;if(v===PASS){var e=new Date();e.setDate(e.getDate()+DAYS);document.cookie=COOKIE+'='+PASS+';expires='+e.toUTCString()+';path=/;SameSite=Strict';d.remove();}else{document.getElementById('_pw_err').textContent='Incorrect password';document.getElementById('_pw_in').value='';document.getElementById('_pw_in').focus();}}
+      document.getElementById('_pw_btn').onclick=attempt;
+      document.getElementById('_pw_in').onkeydown=function(e){if(e.key==='Enter')attempt();};
+      document.getElementById('_pw_in').focus();
+    });
+  })();
+  </script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Edge Matrix — Prediction Market Plug</title>
+  <meta name="description" content="Full signal × category edge grid. See which signals beat their category's base rate and by how many percentage points." />
+  <meta property="og:title" content="Edge Matrix — Prediction Market Plug" />
+  <meta property="og:image" content="https://predictionmarketplug.com/og-image.png" />
+
+  <link rel="icon" type="image/png" href="logo.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --cyan:#00d4ff; --blue:#3b6ef8; --purple:#8b5cf6; --green:#22c55e;
+      --red:#ef4444; --amber:#f59e0b; --dark:#06080f; --dark2:#0d1117;
+      --surface:#0d1117; --border:rgba(0,212,255,0.12);
+      --text:#e2e8f0; --muted:#64748b;
+      --font:'Space Grotesk',sans-serif; --mono:'JetBrains Mono',monospace;
+    }
+    html { scroll-behavior:smooth; }
+    body { font-family:var(--font); background:var(--dark); color:var(--text); overflow-x:hidden; line-height:1.6; min-height:100vh; }
+    body::after { content:''; position:fixed; inset:0; background-image:linear-gradient(rgba(0,212,255,0.025) 1px,transparent 1px),linear-gradient(90deg,rgba(0,212,255,0.025) 1px,transparent 1px); background-size:60px 60px; pointer-events:none; z-index:0; }
+
+    nav { position:sticky; top:0; z-index:200; height:56px; display:flex; align-items:center; padding:0 24px; justify-content:space-between; background:rgba(6,8,15,0.96); backdrop-filter:blur(16px); border-bottom:1px solid var(--border); }
+    .nav-logo { display:flex; align-items:center; gap:8px; text-decoration:none; color:var(--text); }
+    .nav-logo img { width:26px; filter:drop-shadow(0 0 6px rgba(0,212,255,0.6)); }
+    .nav-logo span { font-weight:600; font-size:14px; }
+    .nav-links { display:flex; align-items:center; gap:4px; list-style:none; }
+    .nav-links a { color:var(--muted); text-decoration:none; font-size:13px; font-weight:500; padding:5px 10px; border-radius:6px; transition:color .15s,background .15s; }
+    .nav-links a:hover { color:var(--text); background:rgba(255,255,255,.05); }
+    .nav-links a.active { color:var(--cyan); background:rgba(0,212,255,.08); }
+    .nav-cta { background:var(--cyan); color:#000; font-weight:700; font-size:13px; padding:7px 16px; border-radius:8px; text-decoration:none; }
+    .hamburger { display:none; background:none; border:none; cursor:pointer; color:var(--text); padding:4px; }
+    @media (max-width:860px) { .hamburger{display:block;} .nav-links{display:none;position:absolute;top:56px;left:0;right:0;background:var(--dark2);border-bottom:1px solid var(--border);flex-direction:column;align-items:flex-start;gap:2px;padding:10px 16px;} .nav-links.open{display:flex;} .nav-links a{width:100%;} .nav-cta{display:none;} }
+
+    .page { max-width:1200px; margin:0 auto; padding:48px 24px 80px; position:relative; z-index:1; }
+
+    .page-header { text-align:center; margin-bottom:36px; }
+    .page-label { display:inline-block; background:rgba(0,212,255,0.08); border:1px solid rgba(0,212,255,0.2); border-radius:20px; padding:4px 14px; font-size:11px; font-weight:600; color:var(--cyan); letter-spacing:.06em; text-transform:uppercase; margin-bottom:14px; }
+    .page-header h1 { font-size:clamp(1.8rem,4vw,2.8rem); font-weight:700; line-height:1.2; margin-bottom:10px; }
+    .page-header h1 em { font-style:normal; background:linear-gradient(135deg,var(--cyan),var(--blue)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+    .page-header p { color:var(--muted); font-size:0.95rem; max-width:620px; margin:0 auto; }
+
+    .kpi-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:14px; margin-bottom:32px; }
+    .kpi { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:18px 20px; position:relative; overflow:hidden; }
+    .kpi::before { content:''; position:absolute; top:0; left:0; right:0; height:2px; background:linear-gradient(90deg,transparent,var(--accent,var(--cyan)),transparent); }
+    .kpi-label { font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); margin-bottom:8px; }
+    .kpi-value { font-size:1.7rem; font-weight:700; font-family:var(--mono); }
+    .kpi-sub { font-size:11px; color:var(--muted); margin-top:3px; }
+
+    .explainer { background:rgba(0,212,255,0.03); border:1px solid rgba(0,212,255,0.1); border-radius:10px; padding:16px 20px; font-size:13px; color:var(--muted); line-height:1.6; margin-bottom:24px; }
+    .explainer strong { color:var(--text); }
+
+    .controls { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:20px; align-items:center; }
+    .controls label { font-size:12px; color:var(--muted); font-weight:600; text-transform:uppercase; letter-spacing:.05em; }
+    .controls select, .controls input { background:var(--surface); border:1px solid var(--border); color:var(--text); padding:6px 10px; border-radius:6px; font-family:var(--mono); font-size:12px; outline:none; }
+    .controls select:focus, .controls input:focus { border-color:var(--cyan); }
+
+    .section { margin-bottom:36px; }
+    .section-title { font-size:1.1rem; font-weight:700; margin-bottom:6px; }
+    .section-desc { font-size:13px; color:var(--muted); margin-bottom:16px; }
+
+    .sig-table { width:100%; border-collapse:collapse; font-size:13px; background:var(--surface); border:1px solid var(--border); border-radius:12px; overflow:hidden; }
+    .sig-table th { text-align:left; color:var(--muted); font-weight:600; font-size:11px; text-transform:uppercase; letter-spacing:.05em; padding:12px 14px; border-bottom:1px solid rgba(255,255,255,.06); background:rgba(255,255,255,0.015); cursor:pointer; user-select:none; }
+    .sig-table th:hover { color:var(--text); }
+    .sig-table th.num { text-align:right; }
+    .sig-table td { padding:10px 14px; border-bottom:1px solid rgba(255,255,255,.03); vertical-align:middle; }
+    .sig-table td.num { text-align:right; font-family:var(--mono); }
+    .sig-table tr:last-child td { border-bottom:none; }
+    .sig-table tr:hover td { background:rgba(255,255,255,.02); }
+    .sig-table tr.above-threshold td { background:rgba(0,212,255,0.04); }
+    .sig-table tr.above-threshold:hover td { background:rgba(0,212,255,0.07); }
+    .sig-table tr.anti-edge td { background:rgba(239,68,68,0.04); }
+
+    .pill { display:inline-block; padding:3px 8px; border-radius:4px; font-size:11px; font-weight:600; font-family:var(--mono); white-space:nowrap; }
+    .pill-green { background:rgba(34,197,94,.14); color:var(--green); }
+    .pill-cyan  { background:rgba(0,212,255,.14);  color:var(--cyan); }
+    .pill-amber { background:rgba(245,158,11,.14); color:var(--amber); }
+    .pill-red   { background:rgba(239,68,68,.14);  color:var(--red); }
+    .pill-muted { background:rgba(100,116,139,.1); color:var(--muted); }
+
+    .status { font-size:11px; color:var(--muted); font-family:var(--mono); text-align:right; margin-top:12px; }
+    .spinner { color:var(--muted); text-align:center; padding:40px; font-size:14px; }
+  </style>
+</head>
+<body>
+  <nav>
+    <a class="nav-logo" href="/">
+      <img src="logo.png" alt="PMP" />
+      <span>Prediction Market Plug</span>
+    </a>
+    <button class="hamburger" id="hamburger" aria-label="Menu">☰</button>
+    <ul class="nav-links" id="nav-links">
+      <li><a href="/">Overview</a></li>
+      <li><a href="/leaderboard.html">Leaderboard</a></li>
+      <li><a href="/whales.html">Whale Tracker</a></li>
+      <li><a href="/graph.html">Network</a></li>
+      <li><a href="/signals.html">Signals</a></li>
+      <li><a href="/edge-matrix.html" class="active">Edge Matrix</a></li>
+      <li><a href="/copy-trading.html">Copy Trading</a></li>
+      <li><a href="/dataset.html">Dataset</a></li>
+      <li><a href="/investor.html">Investor</a></li>
+      <li><a class="nav-cta" href="https://whop.com/prediction-market-plug/" target="_blank" rel="noopener">Join Whop</a></li>
+    </ul>
+  </nav>
+
+  <div class="page">
+    <div class="page-header">
+      <span class="page-label">Research — Post-W3</span>
+      <h1>Signal <em>Edge</em> Matrix</h1>
+      <p>Every (signal × category) combo we've resolved, ranked by edge over the category's base rate. Paid Discord channels only post combos above the threshold; the full grid lives here for comparison.</p>
+    </div>
+
+    <div class="kpi-grid">
+      <div class="kpi"><div class="kpi-label">Pairs (min 200 resolved)</div><div class="kpi-value" id="kpi-pairs">—</div></div>
+      <div class="kpi"><div class="kpi-label">Above Paid Threshold</div><div class="kpi-value" id="kpi-above">—</div><div class="kpi-sub"><span id="kpi-threshold">—</span>pp+ edge vs base</div></div>
+      <div class="kpi"><div class="kpi-label">Anti-Edge (Fade)</div><div class="kpi-value" id="kpi-anti">—</div><div class="kpi-sub">below −5pp — avoid or fade</div></div>
+      <div class="kpi"><div class="kpi-label">Total Samples</div><div class="kpi-value" id="kpi-samples">—</div></div>
+    </div>
+
+    <div class="explainer">
+      <strong>Reading this grid.</strong> A signal's raw win rate can look great in a category where "No" wins most markets anyway — every "No-predicting" signal will look predictive. <strong>Edge_pp</strong> corrects for that: it subtracts the category's base rate from the signal's WR, so positive edge means real predictive value. Our paid Discord alert channels post only combos with <strong>edge_pp ≥ <span id="explainer-threshold">—</span>pp</strong>; the 65+ other combos browsable here are either too marginal or too anti-predictive for paid posting.
+    </div>
+
+    <div class="controls">
+      <label for="signal-filter">Signal:</label>
+      <select id="signal-filter"><option value="">All signals</option></select>
+      <label for="category-filter">Category:</label>
+      <select id="category-filter"><option value="">All categories</option></select>
+      <label for="min-samples">Min samples:</label>
+      <input type="number" id="min-samples" value="200" min="20" step="100" style="width:80px" />
+      <button id="apply-btn" style="background:var(--cyan);color:#000;border:none;padding:6px 14px;border-radius:6px;font-weight:700;font-size:12px;cursor:pointer;font-family:var(--font)">Apply</button>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Signal × Category edge grid</div>
+      <div class="section-desc">Click a column header to sort. Rows above the paid threshold are highlighted.</div>
+      <div id="table-container">
+        <div class="spinner">Loading…</div>
+      </div>
+      <div class="status" id="status">—</div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Category base rates</div>
+      <div class="section-desc">What share of markets in each category resolve YES vs NO. A 65% base rate means a coin-flip signal will look 65% accurate — the bar to clear for real edge is higher.</div>
+      <table class="sig-table" id="baserate-table">
+        <thead>
+          <tr>
+            <th>Category</th>
+            <th class="num">Emissions</th>
+            <th class="num">Wins</th>
+            <th class="num">Base WR</th>
+          </tr>
+        </thead>
+        <tbody id="baserate-body"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <script>
+    const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+      ? 'http://127.0.0.1:4001'
+      : 'https://api.predictionmarketplug.com';
+
+    let allRows = [];
+    let allBaseRates = [];
+    let paidThreshold = 30;
+    let sortKey = 'edge_pp';
+    let sortDir = -1; // -1 desc, 1 asc
+
+    const $ = (id) => document.getElementById(id);
+    const fmtInt = (n) => n == null ? '—' : n.toLocaleString();
+    const fmtPct = (v) => v == null ? '—' : (v * 100).toFixed(1) + '%';
+    const fmtEdge = (v) => v == null ? '—' : (v >= 0 ? '+' : '') + v.toFixed(1) + 'pp';
+
+    function edgeClass(ep) {
+      if (ep == null) return 'pill-muted';
+      if (ep >= paidThreshold) return 'pill-cyan';
+      if (ep >= 10) return 'pill-green';
+      if (ep > -5) return 'pill-amber';
+      return 'pill-red';
+    }
+
+    function rowClass(ep) {
+      if (ep == null) return '';
+      if (ep >= paidThreshold) return 'above-threshold';
+      if (ep <= -5) return 'anti-edge';
+      return '';
+    }
+
+    async function load() {
+      const minSamples = parseInt($('min-samples').value, 10) || 200;
+      const sig = $('signal-filter').value;
+      const cat = $('category-filter').value;
+      const params = new URLSearchParams({ minSamples: String(minSamples) });
+      if (sig) params.set('signalId', sig);
+      if (cat) params.set('category', cat);
+
+      $('table-container').innerHTML = '<div class="spinner">Loading…</div>';
+      $('status').textContent = 'Fetching edge-matrix…';
+
+      try {
+        const res = await fetch(`${API_BASE}/public/signals/edge-matrix?${params.toString()}`, { cache: 'no-store' });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        allRows = data.rows || [];
+        allBaseRates = data.baseRates || [];
+        paidThreshold = data.paidThresholdPp || 30;
+
+        $('kpi-threshold').textContent = paidThreshold;
+        $('explainer-threshold').textContent = paidThreshold;
+
+        populateFilters();
+        renderKpis();
+        renderTable();
+        renderBaseRates();
+
+        $('status').textContent = `${allRows.length} pairs · updated ${new Date(data.generatedAt).toLocaleTimeString()}`;
+      } catch (e) {
+        $('table-container').innerHTML = `<div class="spinner" style="color:var(--red)">Error: ${e.message}</div>`;
+        $('status').textContent = 'Failed to load.';
+      }
+    }
+
+    function populateFilters() {
+      const sigs = Array.from(new Set(allRows.map(r => r.signal_id))).sort();
+      const cats = Array.from(new Set(allRows.map(r => r.category))).sort();
+      const sigSel = $('signal-filter');
+      const catSel = $('category-filter');
+      const prevSig = sigSel.value, prevCat = catSel.value;
+      sigSel.innerHTML = '<option value="">All signals</option>' + sigs.map(s => `<option value="${s}"${s === prevSig ? ' selected' : ''}>${s}</option>`).join('');
+      catSel.innerHTML = '<option value="">All categories</option>' + cats.map(c => `<option value="${c}"${c === prevCat ? ' selected' : ''}>${c}</option>`).join('');
+    }
+
+    function renderKpis() {
+      $('kpi-pairs').textContent   = fmtInt(allRows.length);
+      $('kpi-above').textContent   = fmtInt(allRows.filter(r => r.edge_pp >= paidThreshold).length);
+      $('kpi-anti').textContent    = fmtInt(allRows.filter(r => r.edge_pp <= -5).length);
+      $('kpi-samples').textContent = fmtInt(allRows.reduce((s, r) => s + r.total, 0));
+    }
+
+    function renderTable() {
+      const sorted = [...allRows].sort((a, b) => {
+        const av = a[sortKey], bv = b[sortKey];
+        if (av == null) return 1; if (bv == null) return -1;
+        if (av === bv) return 0;
+        return av < bv ? -sortDir : sortDir;
+      });
+      const rowsHtml = sorted.map(r => {
+        const cls = rowClass(r.edge_pp);
+        const pillCls = edgeClass(r.edge_pp);
+        const wrCls = r.wr >= 0.85 ? 'pill-green' : r.wr >= 0.6 ? 'pill-cyan' : r.wr >= 0.45 ? 'pill-amber' : 'pill-red';
+        const postOrBlock = r.edge_pp >= paidThreshold ? '<span class="pill pill-cyan">POST</span>' : '<span class="pill pill-muted">filtered</span>';
+        return `<tr class="${cls}">
+          <td><span style="font-family:var(--mono);font-size:12px">${r.signal_id}</span></td>
+          <td>${r.category}</td>
+          <td class="num">${fmtInt(r.total)}</td>
+          <td class="num">${fmtInt(r.wins)}</td>
+          <td class="num"><span class="pill ${wrCls}">${fmtPct(r.wr)}</span></td>
+          <td class="num">${fmtPct(r.base_rate)}</td>
+          <td class="num"><span class="pill ${pillCls}">${fmtEdge(r.edge_pp)}</span></td>
+          <td class="num">${postOrBlock}</td>
+        </tr>`;
+      }).join('');
+
+      $('table-container').innerHTML = `
+        <table class="sig-table">
+          <thead>
+            <tr>
+              <th data-key="signal_id">Signal</th>
+              <th data-key="category">Category</th>
+              <th class="num" data-key="total">Samples</th>
+              <th class="num" data-key="wins">Wins</th>
+              <th class="num" data-key="wr">WR</th>
+              <th class="num" data-key="base_rate">Base</th>
+              <th class="num" data-key="edge_pp">Edge</th>
+              <th class="num">Paid alert?</th>
+            </tr>
+          </thead>
+          <tbody>${rowsHtml || '<tr><td colspan="8" class="spinner">No pairs match these filters.</td></tr>'}</tbody>
+        </table>`;
+
+      // Wire sort clicks
+      document.querySelectorAll('.sig-table th[data-key]').forEach(th => {
+        th.addEventListener('click', () => {
+          const k = th.getAttribute('data-key');
+          if (sortKey === k) sortDir = -sortDir;
+          else { sortKey = k; sortDir = -1; }
+          renderTable();
+        });
+      });
+    }
+
+    function renderBaseRates() {
+      const rows = [...allBaseRates].sort((a, b) => b.total - a.total);
+      $('baserate-body').innerHTML = rows.map(b => `
+        <tr>
+          <td>${b.category}</td>
+          <td class="num">${fmtInt(b.total)}</td>
+          <td class="num">${fmtInt(b.wins)}</td>
+          <td class="num"><span class="pill ${b.rate >= 0.7 ? 'pill-red' : b.rate >= 0.55 ? 'pill-amber' : 'pill-cyan'}">${fmtPct(b.rate)}</span></td>
+        </tr>
+      `).join('') || '<tr><td colspan="4" class="spinner">No data.</td></tr>';
+    }
+
+    // Hamburger
+    $('hamburger').addEventListener('click', () => $('nav-links').classList.toggle('open'));
+
+    // Apply button + enter on controls
+    $('apply-btn').addEventListener('click', load);
+    ['signal-filter','category-filter','min-samples'].forEach(id => {
+      $(id).addEventListener('change', load);
+    });
+
+    load();
+  </script>
+</body>
+</html>
